@@ -172,6 +172,7 @@ function Index() {
     ctx.strokeStyle = T.text; ctx.globalAlpha = 0.25; ctx.lineWidth = 3; ctx.strokeRect(ox - 2, oy - 2, bw + 4, bh + 4); ctx.globalAlpha = 1;
     if (g.food) {
       const s = cell * (0.85 + 0.08 * Math.sin(t / 150));
+      ctx.fillStyle = T.text;
       ctx.font = `${s}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Noto Emoji",sans-serif`;
       ctx.fillText(g.fruit, ox + g.food.x * cell + cell / 2, oy + g.food.y * cell + cell / 2 + cell * 0.05);
     }
