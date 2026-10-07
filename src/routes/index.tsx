@@ -3,15 +3,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Game } from "@/lib/snake";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ChevronDown, Pause, Play, Square, RotateCcw } from "lucide-react";
 import "@fontsource/noto-emoji/400.css";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Robo Snake — AI ilon o'yini va video yozish" },
-      { name: "description", content: "Robot o'ynaydigan, hech qachon yutqazmaydigan Snake. YouTube va Shorts uchun sifatli video yozib oling." },
-      { property: "og:title", content: "Robo Snake — AI ilon o'yini" },
-      { property: "og:description", content: "Robot butun maydonni to'ldirguncha o'ynaydi. Long va Shorts formatda yozib oling." },
+      { title: "Robo Snake — AI Snake Game & Video Recording" },
+      { name: "description", content: "Watch an expert robot fill the Snake board and record high-quality videos for YouTube and Shorts." },
+      { property: "og:title", content: "Robo Snake — AI Snake Game" },
+      { property: "og:description", content: "An unbeatable robot fills the board. Customize colors and heads, then record in landscape or Shorts format." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -32,19 +34,19 @@ const FORMATS = {
   shorts: { w: 1080, h: 1920, label: "YouTube Shorts 9:16" },
 };
 const THEMES = {
-  neon: "Neon", sunset: "Sunset", classic: "Classic", ocean: "Okean",
-  candy: "Candy", fire: "Olov", lime: "Laym", ice: "Muz", gold: "Oltin", rainbow: "Rangli",
+  neon: "Neon", sunset: "Sunset", classic: "Classic", ocean: "Ocean",
+  candy: "Candy", fire: "Fire", lime: "Lime", ice: "Ice", gold: "Gold", rainbow: "Rainbow",
 };
 const HEADS = [
-  { id: "snake", label: "Ilon", icon: "🐍" },
+  { id: "snake", label: "Snake", icon: "🐍" },
   { id: "robot", label: "Robot", icon: "🤖" },
-  { id: "cat", label: "Mushuk", icon: "🐱" },
-  { id: "dragon", label: "Ajdar", icon: "🐲" },
-  { id: "alien", label: "O‘zga sayyoralik", icon: "👽" },
-  { id: "tiger", label: "Yo‘lbars", icon: "🐯" },
+  { id: "cat", label: "Cat", icon: "🐱" },
+  { id: "dragon", label: "Dragon", icon: "🐲" },
+  { id: "alien", label: "Alien", icon: "👽" },
+  { id: "tiger", label: "Tiger", icon: "🐯" },
   { id: "panda", label: "Panda", icon: "🐼" },
-  { id: "fox", label: "Tulki", icon: "🦊" },
-  { id: "skull", label: "Bosh suyagi", icon: "💀" },
+  { id: "fox", label: "Fox", icon: "🦊" },
+  { id: "skull", label: "Skull", icon: "💀" },
 ];
 
 function Index() {
@@ -52,6 +54,7 @@ function Index() {
   const gameRef = useRef<Game | null>(null);
   const recRef = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
+  const autoRecTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sizeI, setSizeI] = useState(2);
   const [format, setFormat] = useState<keyof typeof FORMATS>("long");
   const [theme, setTheme] = useState<keyof typeof THEMES>("neon");
@@ -62,16 +65,21 @@ function Index() {
   const winColors = useRef({ overlay: "", text: "" });
   const [autoRec, setAutoRec] = useState(true);
   const [running, setRunning] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [ended, setEnded] = useState(false);
+  const [colorOpen, setColorOpen] = useState(false);
+  const [headOpen, setHeadOpen] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [video, setVideo] = useState<{ url: string; ext: string } | null>(null);
+  const [video, setVideo] = useState<{ url: string; ext: string; format: keyof typeof FORMATS } | null>(null);
   const [stats, setStats] = useState({ len: 3, total: 400, eaten: 0 });
-  const cfg = useRef({ speed, theme, format, headStyle });
-  cfg.current = { speed, theme, format, headStyle };
+  const cfg = useRef({ speed, theme, format, headStyle, paused, ended });
+  cfg.current = { speed, theme, format, headStyle, paused, ended };
   const winAt = useRef(0);
 
   const startRec = () => {
     const c = canvasRef.current;
-    if (!c) return;
+    if (!c || (recRef.current && recRef.current.state !== "inactive")) return;
+    const recordedFormat = format;
     const stream = c.captureStream(60);
     const types = ["video/mp4;codecs=avc1", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
     const mime = types.find((t) => MediaRecorder.isTypeSupported(t)) || "";
@@ -80,23 +88,47 @@ function Index() {
     r.ondataavailable = (e) => e.data.size && chunks.current.push(e.data);
     r.onstop = () => {
       const blob = new Blob(chunks.current, { type: mime || "video/webm" });
-      setVideo({ url: URL.createObjectURL(blob), ext: mime.includes("mp4") ? "mp4" : "webm" });
+      setVideo({ url: URL.createObjectURL(blob), ext: mime.includes("mp4") ? "mp4" : "webm", format: recordedFormat });
+      stream.getTracks().forEach((track) => track.stop());
       setRecording(false);
     };
     r.start(1000);
+    if (paused) r.pause();
     recRef.current = r;
     setRecording(true);
     setVideo(null);
   };
-  const stopRec = () => recRef.current?.state === "recording" && recRef.current.stop();
+  const stopRec = () => {
+    const recorder = recRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+  };
+  const togglePause = () => {
+    if (!running || gameRef.current?.won) return;
+    const recorder = recRef.current;
+    if (paused && recorder?.state === "paused") recorder.resume();
+    if (!paused && recorder?.state === "recording") recorder.pause();
+    setPaused(!paused);
+  };
+  const endGame = () => {
+    if (autoRecTimer.current) clearTimeout(autoRecTimer.current);
+    autoRecTimer.current = null;
+    setRunning(false);
+    setPaused(false);
+    setEnded(true);
+    stopRec();
+  };
 
   const start = () => {
     const s = SIZES[sizeI];
     gameRef.current = new Game(s.w, s.h, gameRef.current?.variant);
     setStats({ len: 3, total: s.w * s.h, eaten: 0 });
     winAt.current = 0;
+    setPaused(false);
+    setEnded(false);
     setRunning(true);
-    if (autoRec && !recording) setTimeout(startRec, 50);
+    if (recRef.current?.state === "paused") recRef.current.resume();
+    if (autoRecTimer.current) clearTimeout(autoRecTimer.current);
+    if (autoRec && !recording) autoRecTimer.current = setTimeout(startRec, 50);
   };
 
   useEffect(() => {
@@ -124,13 +156,15 @@ function Index() {
     const loop = (t: number) => {
       const g = gameRef.current;
       const dt = Math.min(0.1, (t - last) / 1000); last = t;
-      if (g && running && !g.won) {
+      if (g && running && !paused && !g.won) {
         acc += dt * cfg.current.speed;
         let n = Math.floor(acc); acc -= n;
         while (n-- > 0 && !g.won) g.step();
         setStats({ len: g.snake.length, total: g.N, eaten: g.eaten });
       }
       if (g?.won) {
+        setRunning(false);
+        setPaused(false);
         if (!winAt.current) winAt.current = t;
         else if (t - winAt.current > 3000 && recRef.current?.state === "recording") stopRec();
       }
@@ -140,7 +174,7 @@ function Index() {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running]);
+  }, [running, paused]);
 
   const draw = (t: number) => {
     const c = canvasRef.current; if (!c) return;
@@ -156,12 +190,12 @@ function Index() {
     ctx.font = `800 ${vertical ? 72 : 56}px system-ui, "Noto Emoji", sans-serif`;
     ctx.fillText("🤖 ROBO SNAKE", W / 2, hud * 0.4);
     if (!g) {
-      ctx.font = "500 40px system-ui"; ctx.fillText("Boshlash tugmasini bosing", W / 2, H / 2); return;
+      ctx.font = "500 40px system-ui"; ctx.fillText("Press Start to begin", W / 2, H / 2); return;
     }
     const pct = ((g.snake.length / g.N) * 100).toFixed(1);
     ctx.font = `600 ${vertical ? 44 : 34}px system-ui, sans-serif`;
     ctx.globalAlpha = 0.8;
-    ctx.fillText(`Uzunlik ${g.snake.length}/${g.N}  •  ${pct}%  •  Mevalar ${g.eaten}`, W / 2, hud * 0.8);
+    ctx.fillText(`Length ${g.snake.length}/${g.N}  •  ${pct}%  •  Fruit ${g.eaten}`, W / 2, hud * 0.8);
     ctx.globalAlpha = 1;
     const pad = 40;
     const cell = Math.floor(Math.min((W - pad * 2) / g.W, (H - hud - pad * 2) / g.H));
@@ -209,12 +243,17 @@ function Index() {
       }
       ctx.restore();
     }
+    if (cfg.current.ended && !g.won) {
+      ctx.fillStyle = winColors.current.overlay; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = winColors.current.text; ctx.font = `800 ${vertical ? 80 : 72}px system-ui`;
+      ctx.fillText("GAME ENDED", W / 2, H / 2);
+    }
     if (g.won) {
       ctx.fillStyle = winColors.current.overlay; ctx.fillRect(0, 0, W, H);
       ctx.fillStyle = winColors.current.text; ctx.font = `900 ${vertical ? 120 : 110}px system-ui, "Noto Emoji"`;
       ctx.fillText("🏆 PERFECT!", W / 2, H / 2 - 40);
       ctx.font = "600 44px system-ui";
-      ctx.fillText(`Maydon 100% to'ldi • ${g.eaten} meva • ${g.steps} qadam`, W / 2, H / 2 + 60);
+      ctx.fillText(`Board 100% filled • ${g.eaten} fruit • ${g.steps} steps`, W / 2, H / 2 + 60);
     }
   };
 
@@ -222,53 +261,77 @@ function Index() {
   return (
     <main className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="flex flex-wrap items-end justify-center gap-4 border-b border-border p-4">
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">Maydon o'lchami
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">Board size
           <select className={sel} value={sizeI} onChange={(e) => setSizeI(+e.target.value)} disabled={running && !gameRef.current?.won}>
             {SIZES.map((s, i) => <option key={i} value={i}>{s.label}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">Video formati
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">Video format
           <select className={sel} value={format} onChange={(e) => setFormat(e.target.value as never)} disabled={recording}>
             {Object.entries(FORMATS).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">Tezlik: {speed} qadam/s
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">Speed: {speed} steps/s
           <div className="flex h-9 items-center gap-3">
-            <input aria-label="Tezlik slayderi" type="range" min={1} max={600} value={speed} onChange={(e) => { setSpeed(+e.target.value); setSpeedText(e.target.value); }} className="w-28 accent-primary" />
-            <input aria-label="Tezlikni kiriting" type="number" inputMode="numeric" min={1} max={600} step={1} value={speedText}
+            <input aria-label="Speed slider" type="range" min={1} max={600} value={speed} onChange={(e) => { setSpeed(+e.target.value); setSpeedText(e.target.value); }} className="w-28 accent-primary" />
+            <input aria-label="Enter speed" type="number" inputMode="numeric" min={1} max={600} step={1} value={speedText}
               onChange={(e) => { const value = e.target.value; setSpeedText(value); const n = Number(value); if (value && Number.isInteger(n) && n >= 1 && n <= 600) setSpeed(n); }}
               onBlur={() => { const n = Number(speedText); const valid = speedText && Number.isFinite(n) ? Math.min(600, Math.max(1, Math.round(n))) : speed; setSpeed(valid); setSpeedText(String(valid)); }}
               className={`${sel} w-20`} />
           </div>
         </label>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={autoRec} onChange={(e) => setAutoRec(e.target.checked)} className="accent-primary" />Avto-yozish</label>
-        <Button onClick={start} className="px-5 font-semibold">
-          {running ? "Qayta boshlash" : "▶ Boshlash"}
-        </Button>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={autoRec} onChange={(e) => setAutoRec(e.target.checked)} className="accent-primary" />Auto-record</label>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Button onClick={start} className="px-5 font-semibold">
+            {gameRef.current ? <RotateCcw /> : <Play />}{gameRef.current ? "Restart" : "Start"}
+          </Button>
+          <Button onClick={togglePause} variant="outline" disabled={!running || gameRef.current?.won}>
+            {paused ? <Play /> : <Pause />}{paused ? "Resume" : "Pause"}
+          </Button>
+          <Button onClick={endGame} variant="outline" disabled={!running || gameRef.current?.won}>
+            <Square />End game
+          </Button>
+        </div>
       </header>
 
-      <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 border-b border-border px-4 py-3">
-        <fieldset className="min-w-0">
-          <legend className="mb-2 text-xs text-muted-foreground">Rang: {THEMES[theme]}</legend>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(THEMES).map(([key, label]) => (
-              <Button key={key} variant="outline" size="icon" aria-label={`Rang: ${label}`} title={label} aria-pressed={theme === key}
-                onClick={() => setTheme(key as keyof typeof THEMES)} className={theme === key ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}>
-                <span data-theme={key} className="snake-swatch h-6 w-6 rounded-sm" />
+      <div className="flex flex-wrap justify-center gap-4 border-b border-border px-4 py-3">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Color</span>
+          <Popover open={colorOpen} onOpenChange={setColorOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" aria-label="Choose color" className="w-40 justify-between">
+                <span data-theme={theme} className="snake-swatch h-5 w-5 shrink-0 rounded-sm" />
+                <span>{THEMES[theme]}</span><ChevronDown />
               </Button>
-            ))}
-          </div>
-        </fieldset>
-        <fieldset className="min-w-0">
-          <legend className="mb-2 text-xs text-muted-foreground">Ilon boshi: {HEADS.find((h) => h.id === headStyle)?.label}</legend>
-          <div className="flex flex-wrap gap-2">
-            {HEADS.map((h) => <Button key={h.id} variant={headStyle === h.id ? "secondary" : "outline"} size="icon"
-              aria-label={`Bosh: ${h.label}`} title={h.label} aria-pressed={headStyle === h.id} onClick={() => setHeadStyle(h.id)}
-              className={headStyle === h.id ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}>
-              <span className="snake-emoji text-xl">{h.icon}</span>
-            </Button>)}
-          </div>
-        </fieldset>
+            </PopoverTrigger>
+            <PopoverContent aria-label="Color options" className="grid w-64 grid-cols-2 gap-2 p-3">
+              {Object.entries(THEMES).map(([key, label]) => (
+                <Button key={key} variant={theme === key ? "secondary" : "ghost"} aria-label={`Color: ${label}`}
+                  aria-pressed={theme === key} className="justify-start" onClick={() => { setTheme(key as keyof typeof THEMES); setColorOpen(false); }}>
+                  <span data-theme={key} className="snake-swatch h-5 w-5 shrink-0 rounded-sm" />{label}
+                </Button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Snake head</span>
+          <Popover open={headOpen} onOpenChange={setHeadOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" aria-label="Choose snake head" className="w-40 justify-between">
+                <span className="snake-emoji text-xl">{HEADS.find((h) => h.id === headStyle)?.icon}</span>
+                <span>{HEADS.find((h) => h.id === headStyle)?.label}</span><ChevronDown />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent aria-label="Snake head options" className="grid w-64 grid-cols-2 gap-2 p-3">
+              {HEADS.map((h) => <Button key={h.id} variant={headStyle === h.id ? "secondary" : "ghost"}
+                aria-label={`Head: ${h.label}`} aria-pressed={headStyle === h.id} className="justify-start"
+                onClick={() => { setHeadStyle(h.id); setHeadOpen(false); }}>
+                <span className="snake-emoji text-xl">{h.icon}</span>{h.label}
+              </Button>)}
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
       <section className="flex flex-1 items-center justify-center p-4">
@@ -276,19 +339,19 @@ function Index() {
       </section>
 
       <footer className="sticky bottom-0 flex flex-wrap items-center justify-center gap-4 border-t border-border bg-card p-4">
-        <span className="text-sm text-muted-foreground">{stats.eaten} meva • {stats.len}/{stats.total}</span>
+        <span role="status" className="text-sm text-muted-foreground">{ended ? "Ended" : gameRef.current?.won ? "Complete" : paused ? "Paused" : running ? "Playing" : "Ready"} • {stats.eaten} fruit • {stats.len}/{stats.total}</span>
         {!recording ? (
           <Button onClick={startRec} variant="destructive" size="lg" className="font-bold">
-            ● Yozishni boshlash
+            ● Start recording
           </Button>
         ) : (
           <Button onClick={stopRec} variant="destructive" size="lg" className="motion-safe:animate-pulse font-bold">
-            ■ To'xtatish
+            ■ Stop recording
           </Button>
         )}
         {video && (
-          <Button asChild size="lg" className="h-auto min-h-10 max-w-full whitespace-normal text-center font-bold"><a href={video.url} download={`robo-snake-${format}.${video.ext}`}>
-            ⬇ Videoni yuklab olish ({FORMATS[format].label})
+          <Button asChild size="lg" className="h-auto min-h-10 max-w-full whitespace-normal text-center font-bold"><a href={video.url} download={`robo-snake-${video.format}.${video.ext}`}>
+            ⬇ Download video ({FORMATS[video.format].label})
           </a></Button>
         )}
       </footer>
