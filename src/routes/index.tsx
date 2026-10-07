@@ -93,7 +93,7 @@ function Index() {
       setRecording(false);
     };
     r.start(1000);
-    if (paused) r.pause();
+    if (cfg.current.paused) r.pause();
     recRef.current = r;
     setRecording(true);
     setVideo(null);
