@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { buildCycle, Game } from "./snake";
 
-const sizes = [[10, 10], [16, 16], [20, 20], [30, 30], [16, 28], [32, 18]];
+const sizes: [number, number][] = [[10, 10], [16, 16], [20, 20], [30, 30], [16, 28], [32, 18]];
+const edgeSizes: [number, number][] = [[6, 5], [5, 6], [2, 8]];
 
 describe("randomized safe robot", () => {
   it("keeps every transformed cycle adjacent, closed and complete", () => {
-    for (const [w, h] of [...sizes, [6, 5], [5, 6], [2, 8]]) {
+    for (const [w, h] of [...sizes, ...edgeSizes]) {
       for (let variant = 0; variant < 16; variant++) {
         const { path, order } = buildCycle(w, h, variant, 17);
         expect(new Set(path.map((p) => `${p.x},${p.y}`)).size).toBe(w * h);

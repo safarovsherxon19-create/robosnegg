@@ -158,6 +158,7 @@
   --snake-win-overlay: #0000008c; --snake-win-text: #ffffff;
 }
 .snake-swatch { background: linear-gradient(135deg, rgb(var(--swatch-a)), rgb(var(--swatch-b))); }
+.snake-emoji { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Noto Emoji", sans-serif; }
 .snake-swatch[data-theme="neon"] { --swatch-a: var(--snake-neon-a); --swatch-b: var(--snake-neon-b); }
 .snake-swatch[data-theme="sunset"] { --swatch-a: var(--snake-sunset-a); --swatch-b: var(--snake-sunset-b); }
 .snake-swatch[data-theme="classic"] { --swatch-a: var(--snake-classic-a); --swatch-b: var(--snake-classic-b); }

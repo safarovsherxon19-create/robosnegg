@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Game } from "@/lib/snake";
 import { Button } from "@/components/ui/button";
+import "@fontsource/noto-emoji/400.css";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -152,7 +153,7 @@ function Index() {
     const vertical = H > W;
     const hud = vertical ? 260 : 120;
     ctx.fillStyle = T.text; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = `800 ${vertical ? 72 : 56}px system-ui, sans-serif`;
+    ctx.font = `800 ${vertical ? 72 : 56}px system-ui, "Noto Emoji", sans-serif`;
     ctx.fillText("🤖 ROBO SNAKE", W / 2, hud * 0.4);
     if (!g) {
       ctx.font = "500 40px system-ui"; ctx.fillText("Boshlash tugmasini bosing", W / 2, H / 2); return;
@@ -171,7 +172,7 @@ function Index() {
     ctx.strokeStyle = T.text; ctx.globalAlpha = 0.25; ctx.lineWidth = 3; ctx.strokeRect(ox - 2, oy - 2, bw + 4, bh + 4); ctx.globalAlpha = 1;
     if (g.food) {
       const s = cell * (0.85 + 0.08 * Math.sin(t / 150));
-      ctx.font = `${s}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+      ctx.font = `${s}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Noto Emoji",sans-serif`;
       ctx.fillText(g.fruit, ox + g.food.x * cell + cell / 2, oy + g.food.y * cell + cell / 2 + cell * 0.05);
     }
     const L = g.snake.length, gap = Math.max(1, cell * 0.08);
@@ -192,7 +193,8 @@ function Index() {
     const h = g.snake[0];
     const head = HEADS.find((item) => item.id === cfg.current.headStyle);
     if (head?.id !== "snake") {
-      ctx.font = `${cell * 0.92}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+      ctx.font = `${cell * 0.92}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Noto Emoji",sans-serif`;
+      ctx.fillStyle = T.text;
       ctx.fillText(head?.icon || "🤖", ox + h.x * cell + cell / 2, oy + h.y * cell + cell * 0.54);
     } else {
       const neck = g.snake[1];
@@ -208,7 +210,7 @@ function Index() {
     }
     if (g.won) {
       ctx.fillStyle = winColors.current.overlay; ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = winColors.current.text; ctx.font = `900 ${vertical ? 120 : 110}px system-ui`;
+      ctx.fillStyle = winColors.current.text; ctx.font = `900 ${vertical ? 120 : 110}px system-ui, "Noto Emoji"`;
       ctx.fillText("🏆 PERFECT!", W / 2, H / 2 - 40);
       ctx.font = "600 44px system-ui";
       ctx.fillText(`Maydon 100% to'ldi • ${g.eaten} meva • ${g.steps} qadam`, W / 2, H / 2 + 60);
@@ -262,7 +264,7 @@ function Index() {
             {HEADS.map((h) => <Button key={h.id} variant={headStyle === h.id ? "secondary" : "outline"} size="icon"
               aria-label={`Bosh: ${h.label}`} title={h.label} aria-pressed={headStyle === h.id} onClick={() => setHeadStyle(h.id)}
               className={headStyle === h.id ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}>
-              <span className="text-xl">{h.icon}</span>
+              <span className="snake-emoji text-xl">{h.icon}</span>
             </Button>)}
           </div>
         </fieldset>
