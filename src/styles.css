@@ -142,3 +142,30 @@
     color: var(--color-foreground);
   }
 }
+
+/* Canvas artwork palettes, shared by preview and video recording. */
+:root {
+  --snake-neon-bg: #0b0f1a; --snake-neon-grid: #141a2b; --snake-neon-a: 120,255,170; --snake-neon-b: 40,170,255; --snake-neon-text: #e8fff3;
+  --snake-sunset-bg: #1a0d14; --snake-sunset-grid: #25131d; --snake-sunset-a: 255,200,80; --snake-sunset-b: 255,70,120; --snake-sunset-text: #fff2e0;
+  --snake-classic-bg: #9bbc0f; --snake-classic-grid: #8bac0f; --snake-classic-a: 48,98,48; --snake-classic-b: 15,56,15; --snake-classic-text: #0f380f;
+  --snake-ocean-bg: #071e24; --snake-ocean-grid: #10303a; --snake-ocean-a: 90,245,240; --snake-ocean-b: 45,120,245; --snake-ocean-text: #e6ffff;
+  --snake-candy-bg: #251322; --snake-candy-grid: #361c32; --snake-candy-a: 255,125,210; --snake-candy-b: 120,240,245; --snake-candy-text: #fff0fb;
+  --snake-fire-bg: #200d0e; --snake-fire-grid: #331517; --snake-fire-a: 255,230,100; --snake-fire-b: 255,65,45; --snake-fire-text: #fff5e5;
+  --snake-lime-bg: #101d15; --snake-lime-grid: #1c3020; --snake-lime-a: 210,255,70; --snake-lime-b: 40,220,130; --snake-lime-text: #f1ffe6;
+  --snake-ice-bg: #e5f2f6; --snake-ice-grid: #d0e5ed; --snake-ice-a: 35,170,210; --snake-ice-b: 45,70,150; --snake-ice-text: #133545;
+  --snake-gold-bg: #191913; --snake-gold-grid: #2a291e; --snake-gold-a: 255,225,105; --snake-gold-b: 225,145,40; --snake-gold-text: #fff8d9;
+  --snake-rainbow-bg: #14151b; --snake-rainbow-grid: #22242d; --snake-rainbow-a: 255,100,140; --snake-rainbow-b: 75,215,255; --snake-rainbow-text: #f8f8ff;
+  --snake-win-overlay: #0000008c; --snake-win-text: #ffffff;
+}
+.snake-swatch { background: linear-gradient(135deg, rgb(var(--swatch-a)), rgb(var(--swatch-b))); }
+.snake-emoji { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Noto Emoji", sans-serif; }
+.snake-swatch[data-theme="neon"] { --swatch-a: var(--snake-neon-a); --swatch-b: var(--snake-neon-b); }
+.snake-swatch[data-theme="sunset"] { --swatch-a: var(--snake-sunset-a); --swatch-b: var(--snake-sunset-b); }
+.snake-swatch[data-theme="classic"] { --swatch-a: var(--snake-classic-a); --swatch-b: var(--snake-classic-b); }
+.snake-swatch[data-theme="ocean"] { --swatch-a: var(--snake-ocean-a); --swatch-b: var(--snake-ocean-b); }
+.snake-swatch[data-theme="candy"] { --swatch-a: var(--snake-candy-a); --swatch-b: var(--snake-candy-b); }
+.snake-swatch[data-theme="fire"] { --swatch-a: var(--snake-fire-a); --swatch-b: var(--snake-fire-b); }
+.snake-swatch[data-theme="lime"] { --swatch-a: var(--snake-lime-a); --swatch-b: var(--snake-lime-b); }
+.snake-swatch[data-theme="ice"] { --swatch-a: var(--snake-ice-a); --swatch-b: var(--snake-ice-b); }
+.snake-swatch[data-theme="gold"] { --swatch-a: var(--snake-gold-a); --swatch-b: var(--snake-gold-b); }
+.snake-swatch[data-theme="rainbow"] { --swatch-a: var(--snake-rainbow-a); --swatch-b: var(--snake-rainbow-b); }

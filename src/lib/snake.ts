@@ -3,14 +3,24 @@ export type P = { x: number; y: number };
 export const FRUITS = ["🍎", "🍌", "🍇", "🍓", "🍒", "🍊", "🍉", "🍍", "🥝", "🍑", "🍐", "🥭", "🍋", "🫐"];
 
 // Hamiltonian cycle (H must be even). Returns order index for each cell.
-export function buildCycle(W: number, H: number): { order: number[]; path: P[] } {
-  const path: P[] = [];
-  for (let x = 0; x < W; x++) path.push({ x, y: 0 });
-  for (let y = 1; y < H; y++) {
-    if (y % 2 === 1) for (let x = W - 1; x >= 1; x--) path.push({ x, y });
-    else for (let x = 1; x < W; x++) path.push({ x, y });
+export function buildCycle(W: number, H: number, variant = 0, offset = 0): { order: number[]; path: P[] } {
+  if (W < 2 || H < 2 || (W % 2 && H % 2)) throw new Error("Maydonning bir tomoni juft bo'lishi kerak");
+  const transpose = H % 2 !== 0 || (W % 2 === 0 && Boolean(variant & 1));
+  const width = transpose ? H : W, height = transpose ? W : H;
+  let path: P[] = [];
+  for (let x = 0; x < width; x++) path.push({ x, y: 0 });
+  for (let y = 1; y < height; y++) {
+    if (y % 2 === 1) for (let x = width - 1; x >= 1; x--) path.push({ x, y });
+    else for (let x = 1; x < width; x++) path.push({ x, y });
   }
-  for (let y = H - 1; y >= 1; y--) path.push({ x: 0, y });
+  for (let y = height - 1; y >= 1; y--) path.push({ x: 0, y });
+  path = path.map((p) => {
+    const x = transpose ? p.y : p.x, y = transpose ? p.x : p.y;
+    return { x: variant & 2 ? W - 1 - x : x, y: variant & 4 ? H - 1 - y : y };
+  });
+  if (variant & 8) path.reverse();
+  const shift = ((offset % path.length) + path.length) % path.length;
+  path = [...path.slice(shift), ...path.slice(0, shift)];
   const order = new Array(W * H).fill(0);
   path.forEach((p, i) => (order[p.y * W + p.x] = i));
   return { order, path };
@@ -23,10 +33,13 @@ export class Game {
   food: P | null = null; fruit = FRUITS[0];
   eaten = 0; won = false; steps = 0;
   occ: Uint8Array;
+  variant: number;
 
-  constructor(W: number, H: number) {
+  constructor(W: number, H: number, previousVariant?: number) {
     this.W = W; this.H = H; this.N = W * H;
-    const c = buildCycle(W, H); this.order = c.order; this.path = c.path;
+    const choices = Array.from({ length: 16 }, (_, i) => i).filter((i) => i !== previousVariant);
+    this.variant = choices[Math.floor(Math.random() * choices.length)];
+    const c = buildCycle(W, H, this.variant, Math.floor(Math.random() * this.N)); this.order = c.order; this.path = c.path;
     this.occ = new Uint8Array(this.N);
     // start with length 3 along cycle
     for (let i = 2; i >= 0; i--) this.snake.push(this.path[i]);
@@ -74,7 +87,7 @@ export class Game {
     const n = this.next();
     this.steps++;
     const ate = !!this.food && n.x === this.food.x && n.y === this.food.y;
-    if (!ate) { const t = this.snake.pop()!; this.occ[this.idx(t)] = 0; }
+    if (!ate) { const t = this.snake.pop(); if (t) this.occ[this.idx(t)] = 0; }
     this.snake.unshift(n); this.occ[this.idx(n)] = 1;
     if (ate) { this.eaten++; this.spawn(); }
     if (this.snake.length >= this.N) { this.won = true; this.food = null; }

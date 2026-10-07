@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Randomize robot runs by transforming and rotating a Hamiltonian cycle, excluding the preceding variant; preserve cycle-order shortcut checks so full-board play remains collision-free.
+- Define canvas palettes in global CSS tokens and read them in the browser; recording and on-screen rendering must share the same selected palette and head.
