@@ -1,7 +1,8 @@
 // @ts-nocheck -- array index access is bounds-checked by game logic
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Game } from "@/lib/snake";
+import { Game, type Mode } from "@/lib/snake";
+import { GameAudio } from "@/lib/audio";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ChevronDown, Pause, Play, Square, RotateCcw } from "lucide-react";
@@ -28,6 +29,7 @@ const SIZES = [
   { label: "30 × 30", w: 30, h: 30 },
   { label: "16 × 28 (Shorts)", w: 16, h: 28 },
   { label: "32 × 18 (Long)", w: 32, h: 18 },
+  { label: "Custom…", w: 0, h: 0 },
 ];
 const FORMATS = {
   long: { w: 1920, h: 1080, label: "YouTube Long 16:9" },
@@ -64,6 +66,13 @@ function Index() {
   const paletteRef = useRef({});
   const winColors = useRef({ overlay: "", text: "" });
   const [autoRec, setAutoRec] = useState(true);
+  const [mode, setMode] = useState<Mode>("classic");
+  const [music, setMusic] = useState(true);
+  const [customW, setCustomW] = useState("24");
+  const [customH, setCustomH] = useState("14");
+  const [sizeError, setSizeError] = useState("");
+  const audioRef = useRef<GameAudio | null>(null);
+  const ensureAudio = () => { if (!audioRef.current) audioRef.current = new GameAudio(); audioRef.current.resume(); return audioRef.current; };
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
   const [ended, setEnded] = useState(false);
@@ -81,7 +90,9 @@ function Index() {
     if (!c || (recRef.current && recRef.current.state !== "inactive")) return;
     const recordedFormat = format;
     const stream = c.captureStream(60);
-    const types = ["video/mp4;codecs=avc1", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+    const a = ensureAudio().dest.stream.getAudioTracks()[0];
+    if (a) stream.addTrack(a.clone());
+    const types = ["video/mp4;codecs=avc1,mp4a.40.2", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/mp4;codecs=avc1", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
     const mime = types.find((t) => MediaRecorder.isTypeSupported(t)) || "";
     const r = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 16_000_000 });
     chunks.current = [];
@@ -107,6 +118,7 @@ function Index() {
     const recorder = recRef.current;
     if (paused && recorder?.state === "paused") recorder.resume();
     if (!paused && recorder?.state === "recording") recorder.pause();
+    if (paused && music) audioRef.current?.startMusic(); else audioRef.current?.stopMusic();
     setPaused(!paused);
   };
   const endGame = () => {
@@ -115,12 +127,23 @@ function Index() {
     setRunning(false);
     setPaused(false);
     setEnded(true);
+    audioRef.current?.stopMusic();
     stopRec();
   };
 
   const start = () => {
-    const s = SIZES[sizeI];
-    gameRef.current = new Game(s.w, s.h, gameRef.current?.variant);
+    let s = SIZES[sizeI];
+    if (!s.w) {
+      const w = Number(customW), h = Number(customH);
+      if (!Number.isInteger(w) || !Number.isInteger(h) || w < 4 || h < 4 || w > 60 || h > 60) { setSizeError("Width and height must be whole numbers from 4 to 60."); return; }
+      if (w % 2 && h % 2) { setSizeError("Width or height must be an even number."); return; }
+      s = { label: "", w, h };
+    }
+    setSizeError("");
+    gameRef.current = new Game(s.w, s.h, gameRef.current?.variant, mode);
+    const au = ensureAudio();
+    au.stopMusic();
+    if (music) au.startMusic();
     setStats({ len: 3, total: s.w * s.h, eaten: 0 });
     winAt.current = 0;
     setPaused(false);
@@ -159,13 +182,15 @@ function Index() {
       if (g && running && !paused && !g.won) {
         acc += dt * cfg.current.speed;
         let n = Math.floor(acc); acc -= n;
-        while (n-- > 0 && !g.won) g.step();
+        let ate = false;
+        while (n-- > 0 && !g.won) ate = g.step() || ate;
+        if (ate) audioRef.current?.eat();
         setStats({ len: g.snake.length, total: g.N, eaten: g.eaten });
       }
       if (g?.won) {
         setRunning(false);
         setPaused(false);
-        if (!winAt.current) winAt.current = t;
+        if (!winAt.current) { winAt.current = t; audioRef.current?.stopMusic(); }
         else if (t - winAt.current > 3000 && recRef.current?.state === "recording") stopRec();
       }
       draw(t);
@@ -204,11 +229,11 @@ function Index() {
     ctx.fillStyle = T.grid;
     for (let y = 0; y < g.H; y++) for (let x = 0; x < g.W; x++) if ((x + y) % 2 === 0) ctx.fillRect(ox + x * cell, oy + y * cell, cell, cell);
     ctx.strokeStyle = T.text; ctx.globalAlpha = 0.25; ctx.lineWidth = 3; ctx.strokeRect(ox - 2, oy - 2, bw + 4, bh + 4); ctx.globalAlpha = 1;
-    if (g.food) {
+    {
       const s = cell * (0.85 + 0.08 * Math.sin(t / 150));
       ctx.fillStyle = T.text;
       ctx.font = `${s}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Noto Emoji",sans-serif`;
-      ctx.fillText(g.fruit, ox + g.food.x * cell + cell / 2, oy + g.food.y * cell + cell / 2 + cell * 0.05);
+      for (const f of g.foods) ctx.fillText(f.fruit, ox + f.p.x * cell + cell / 2, oy + f.p.y * cell + cell / 2 + cell * 0.05);
     }
     const L = g.snake.length, gap = Math.max(1, cell * 0.08);
     for (let i = L - 1; i >= 0; i--) {
@@ -226,6 +251,19 @@ function Index() {
       }
     }
     const h = g.snake[0];
+    const near = g.foods.reduce((m, f) => Math.min(m, Math.abs(f.p.x - h.x) + Math.abs(f.p.y - h.y)), Infinity);
+    const mouth = near <= 3 ? (4 - near) / 3 : 0; // opens wider as fruit gets closer
+    if (mouth > 0) {
+      const neck0 = g.snake[1];
+      const ang = neck0 ? Math.atan2(h.y - neck0.y, h.x - neck0.x) : 0;
+      ctx.save();
+      ctx.translate(ox + h.x * cell + cell / 2, oy + h.y * cell + cell / 2);
+      ctx.rotate(ang);
+      const open = 0.25 + 0.45 * mouth;
+      ctx.fillStyle = T.bg;
+      ctx.beginPath(); ctx.moveTo(cell * 0.02, 0); ctx.arc(cell * 0.02, 0, cell * 0.55, -open, open); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
     const head = HEADS.find((item) => item.id === cfg.current.headStyle);
     if (head?.id !== "snake") {
       ctx.font = `${cell * 0.92}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Noto Emoji",sans-serif`;
@@ -280,6 +318,23 @@ function Index() {
               className={`${sel} w-20`} />
           </div>
         </label>
+        {!SIZES[sizeI].w && (
+          <div className="flex flex-col gap-1 text-xs text-muted-foreground">Custom size (W × H)
+            <div className="flex items-center gap-2">
+              <input aria-label="Board width" type="number" min={4} max={60} value={customW} onChange={(e) => setCustomW(e.target.value)} className={`${sel} w-20`} disabled={running && !gameRef.current?.won} />
+              ×
+              <input aria-label="Board height" type="number" min={4} max={60} value={customH} onChange={(e) => setCustomH(e.target.value)} className={`${sel} w-20`} disabled={running && !gameRef.current?.won} />
+            </div>
+            {sizeError && <span role="alert" className="text-destructive">{sizeError}</span>}
+          </div>
+        )}
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">Mode
+          <select className={sel} value={mode} onChange={(e) => setMode(e.target.value as Mode)} disabled={running && !gameRef.current?.won}>
+            <option value="classic">Classic (1 fruit)</option>
+            <option value="double">2x Classic (1, 2, 4, 8…)</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={music} onChange={(e) => { setMusic(e.target.checked); if (!e.target.checked) audioRef.current?.stopMusic(); else if (running && !paused) ensureAudio().startMusic(); }} className="accent-primary" />Music</label>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={autoRec} onChange={(e) => setAutoRec(e.target.checked)} className="accent-primary" />Auto-record</label>
         <div className="flex flex-wrap items-center justify-center gap-2">
           <Button onClick={start} className="px-5 font-semibold">
