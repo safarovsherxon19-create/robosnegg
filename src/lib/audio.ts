@@ -33,18 +33,31 @@ export class GameAudio {
     o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02);
   }
 
-  /** Crunchy "nom" bite sound. */
+  /** Realistic apple-bite: sharp skin crack, crumbly crunch, wet jaw thump. */
   eat() {
-    const t = this.ctx.currentTime;
-    const len = Math.floor(this.ctx.sampleRate * 0.09);
-    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 2;
-    const src = this.ctx.createBufferSource(); src.buffer = buf;
-    const bp = this.ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1800; bp.Q.value = 0.8;
-    const g = this.ctx.createGain(); g.gain.value = 0.7;
-    src.connect(bp); bp.connect(g); g.connect(this.master); src.start(t);
-    this.tone(520, t, 0.12, "square", 0.12, this.master, 880);
+    const t0 = this.ctx.currentTime;
+    // Layered noise bursts: the first is the crisp skin "crack", the later
+    // ones are the fibrous crunch of the flesh, getting softer and lower.
+    const bursts = [
+      { at: 0, dur: 0.035, freq: 5200, q: 1.1, vol: 0.95 },
+      { at: 0.04, dur: 0.05, freq: 3100, q: 0.9, vol: 0.75 },
+      { at: 0.09, dur: 0.07, freq: 2100, q: 0.8, vol: 0.55 },
+      { at: 0.15, dur: 0.08, freq: 1400, q: 0.7, vol: 0.35 },
+    ];
+    for (const b of bursts) {
+      const len = Math.floor(this.ctx.sampleRate * b.dur);
+      const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 2;
+      const src = this.ctx.createBufferSource(); src.buffer = buf;
+      const bp = this.ctx.createBiquadFilter(); bp.type = "bandpass";
+      bp.frequency.value = b.freq * (0.9 + Math.random() * 0.2); bp.Q.value = b.q;
+      const g = this.ctx.createGain(); g.gain.value = b.vol;
+      src.connect(bp); bp.connect(g); g.connect(this.master); src.start(t0 + b.at);
+    }
+    // Wet jaw-close thump plus a juicy squelch under the crunch.
+    this.tone(190, t0 + 0.02, 0.16, "sine", 0.3, this.master, 65);
+    this.tone(880, t0 + 0.05, 0.12, "sawtooth", 0.06, this.master, 260);
   }
 
   // Upbeat chiptune loop in A minor: bass + arpeggio + hi-hat.

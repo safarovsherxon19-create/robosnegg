@@ -65,6 +65,8 @@ function Index() {
   const [headStyle, setHeadStyle] = useState("snake");
   const paletteRef = useRef({});
   const winColors = useRef({ overlay: "", text: "" });
+  const mouthCols = useRef({ mouth: "", tongue: "", teeth: "" });
+  const eatAt = useRef(-1000);
   const [autoRec, setAutoRec] = useState(true);
   const [mode, setMode] = useState<Mode>("classic");
   const [music, setMusic] = useState(true);
@@ -165,6 +167,7 @@ function Index() {
       };
     }
     winColors.current = { overlay: token("--snake-win-overlay"), text: token("--snake-win-text") };
+    mouthCols.current = { mouth: token("--snake-mouth"), tongue: token("--snake-tongue"), teeth: token("--snake-teeth") };
   }, []);
 
   useEffect(() => {
@@ -184,7 +187,7 @@ function Index() {
         let n = Math.floor(acc); acc -= n;
         let ate = false;
         while (n-- > 0 && !g.won) ate = g.step() || ate;
-        if (ate) audioRef.current?.eat();
+        if (ate) { audioRef.current?.eat(); eatAt.current = t; }
         setStats({ len: g.snake.length, total: g.N, eaten: g.eaten });
       }
       if (g?.won) {
@@ -252,23 +255,51 @@ function Index() {
     }
     const h = g.snake[0];
     const near = g.foods.reduce((m, f) => Math.min(m, Math.abs(f.p.x - h.x) + Math.abs(f.p.y - h.y)), Infinity);
-    const mouth = near <= 3 ? (4 - near) / 3 : 0; // opens wider as fruit gets closer
-    if (mouth > 0) {
+    let mouth = near <= 3 ? (4 - near) / 3 : 0; // opens wider as fruit gets closer
+    // Chomp: jaws snap shut right at the bite, then reopen over ~200 ms.
+    const sinceEat = t - eatAt.current;
+    if (sinceEat < 200) mouth = Math.max(mouth, 0.85) * (sinceEat < 60 ? 1 - sinceEat / 60 : (sinceEat - 60) / 140);
+    if (mouth > 0.02 && headStyle === "snake") {
       const neck0 = g.snake[1];
       const ang = neck0 ? Math.atan2(h.y - neck0.y, h.x - neck0.x) : 0;
       ctx.save();
       ctx.translate(ox + h.x * cell + cell / 2, oy + h.y * cell + cell / 2);
       ctx.rotate(ang);
-      const open = 0.25 + 0.45 * mouth;
-      ctx.fillStyle = T.bg;
-      ctx.beginPath(); ctx.moveTo(cell * 0.02, 0); ctx.arc(cell * 0.02, 0, cell * 0.55, -open, open); ctx.closePath(); ctx.fill();
+      // slight chewing flutter so the jaws never freeze fully open
+      const open = (0.2 + 0.5 * mouth) * (0.9 + 0.1 * Math.sin(t / 55));
+      const hinge = cell * 0.02, R = cell * 0.62;
+      // dark fleshy mouth interior
+      ctx.fillStyle = mouthCols.current.mouth;
+      ctx.beginPath(); ctx.moveTo(hinge, 0); ctx.arc(hinge, 0, R, -open, open); ctx.closePath(); ctx.fill();
+      // tongue flicking toward the fruit
+      ctx.strokeStyle = mouthCols.current.tongue;
+      ctx.lineWidth = Math.max(2, cell * 0.09); ctx.lineCap = "round";
+      const tl = R * (0.45 + 0.4 * mouth);
+      ctx.beginPath(); ctx.moveTo(hinge, 0);
+      ctx.quadraticCurveTo(hinge + tl * 0.6, cell * 0.08 * mouth, hinge + tl, 0);
+      ctx.stroke();
+      // teeth on the upper and lower jaw
+      ctx.fillStyle = mouthCols.current.teeth;
+      for (const s of [-1, 1]) {
+        const ax = hinge + R * 0.6 * Math.cos(open), ay = s * R * 0.6 * Math.sin(open);
+        ctx.beginPath();
+        ctx.moveTo(ax + cell * 0.08, ay);
+        ctx.lineTo(ax - cell * 0.07, ay - s * cell * 0.16);
+        ctx.lineTo(ax - cell * 0.2, ay);
+        ctx.closePath(); ctx.fill();
+      }
       ctx.restore();
     }
     const head = HEADS.find((item) => item.id === cfg.current.headStyle);
     if (head?.id !== "snake") {
+      ctx.save();
+      ctx.translate(ox + h.x * cell + cell / 2, oy + h.y * cell + cell * 0.54);
+      const sc = 1 + 0.18 * mouth; // squash-and-stretch chomp for emoji heads
+      ctx.scale(sc, 2 - sc);
       ctx.font = `${cell * 0.92}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Noto Emoji",sans-serif`;
       ctx.fillStyle = T.text;
-      ctx.fillText(head?.icon || "🤖", ox + h.x * cell + cell / 2, oy + h.y * cell + cell * 0.54);
+      ctx.fillText(head?.icon || "🤖", 0, 0);
+      ctx.restore();
     } else {
       const neck = g.snake[1];
       const angle = neck ? Math.atan2(h.y - neck.y, h.x - neck.x) : 0;
