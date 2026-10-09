@@ -1,3 +1,4 @@
+import biteAsset from "@/assets/robo-snake-bite.mp3.asset.json";
 // Procedural game audio (Web Audio). Everything routes to speakers AND a
 // MediaStream so recordings include the same sound the player hears.
 export class GameAudio {
