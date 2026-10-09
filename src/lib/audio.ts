@@ -33,8 +33,32 @@ export class GameAudio {
     o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.02);
   }
 
-  /** Realistic apple-bite: sharp skin crack, crumbly crunch, wet jaw thump. */
+  private biteBuf: AudioBuffer | null = null;
+  private biteLoading = false;
+  private loadBite() {
+    if (this.biteLoading) return;
+    this.biteLoading = true;
+    fetch(biteAsset.url).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a))
+      .then((b) => { this.biteBuf = b; }).catch(() => {});
+  }
+
+  /** Game bite: enhanced real apple crunch, pitch-varied each bite, plus a juicy pop. */
   eat() {
+    this.loadBite();
+    if (this.biteBuf) {
+      const t0 = this.ctx.currentTime;
+      const src = this.ctx.createBufferSource(); src.buffer = this.biteBuf;
+      src.playbackRate.value = 1.08 + Math.random() * 0.22; // snappier, never identical
+      const g = this.ctx.createGain(); g.gain.value = 1.0;
+      src.connect(g); g.connect(this.master); src.start(t0);
+      // Tiny arcade "pop" on top so it fits the game feel.
+      this.tone(620 + Math.random() * 120, t0, 0.09, "triangle", 0.12, this.master, 1250);
+      return;
+    }
+    this.synthEat();
+  }
+
+  private synthEat() {
     const t0 = this.ctx.currentTime;
     // Layered noise bursts: the first is the crisp skin "crack", the later
     // ones are the fibrous crunch of the flesh, getting softer and lower.
