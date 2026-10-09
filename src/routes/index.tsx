@@ -292,9 +292,14 @@ function Index() {
     }
     const head = HEADS.find((item) => item.id === cfg.current.headStyle);
     if (head?.id !== "snake") {
+      ctx.save();
+      ctx.translate(ox + h.x * cell + cell / 2, oy + h.y * cell + cell * 0.54);
+      const sc = 1 + 0.18 * mouth; // squash-and-stretch chomp for emoji heads
+      ctx.scale(sc, 2 - sc);
       ctx.font = `${cell * 0.92}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Noto Emoji",sans-serif`;
       ctx.fillStyle = T.text;
-      ctx.fillText(head?.icon || "🤖", ox + h.x * cell + cell / 2, oy + h.y * cell + cell * 0.54);
+      ctx.fillText(head?.icon || "🙂", 0, 0);
+      ctx.restore();
     } else {
       const neck = g.snake[1];
       const angle = neck ? Math.atan2(h.y - neck.y, h.x - neck.x) : 0;
