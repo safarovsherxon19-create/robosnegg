@@ -22,7 +22,7 @@ export class GameAudio {
     this.musicGain.connect(this.master);
   }
 
-  resume() { if (this.ctx.state === "suspended") void this.ctx.resume(); }
+  resume() { this.loadBite(); if (this.ctx.state === "suspended") void this.ctx.resume(); }
 
   private tone(freq: number, t: number, dur: number, type: OscillatorType, vol: number, out: AudioNode, slideTo?: number) {
     const o = this.ctx.createOscillator(), g = this.ctx.createGain();
