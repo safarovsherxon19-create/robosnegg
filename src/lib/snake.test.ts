@@ -20,18 +20,30 @@ describe("randomized safe robot", () => {
     }
   });
 
+  it("double mode spawns 1, then 2, then 4 fruit", () => {
+    const game = new Game(20, 20, undefined, "double");
+    const waves: number[] = [game.foods.length];
+    while (waves.length < 3) { const before = game.foods.length; game.step(); if (game.foods.length > before) waves.push(game.foods.length); }
+    expect(waves).toEqual([1, 2, 4]);
+  });
+
+  it("classic mode always shows exactly one fruit", () => {
+    const game = new Game(10, 10);
+    while (!game.won) { expect(game.foods.length).toBe(1); game.step(); }
+  });
+
   it("finishes every board without collisions across randomized restarts", () => {
-    for (const [w, h] of sizes) {
+    for (const [w, h] of [...sizes, [12, 7], [9, 14]] as [number, number][]) {
       let previous: number | undefined;
       for (let run = 0; run < 8; run++) {
-        const game = new Game(w, h, previous);
+        const game = new Game(w, h, previous, run % 2 ? "double" : "classic");
         expect(game.variant).not.toBe(previous);
         previous = game.variant;
         const limit = game.N * game.N;
         while (!game.won && game.steps < limit) {
           const next = game.next();
           const tail = game.snake.at(-1);
-          const eating = game.food?.x === next.x && game.food?.y === next.y;
+          const eating = game.foodAt(next) >= 0;
           if (game.occ[game.idx(next)] && (eating || tail?.x !== next.x || tail?.y !== next.y)) throw new Error("Collision");
           const before = game.snake.length;
           expect(game.step() ? game.snake.length === before + 1 : game.snake.length === before).toBe(true);
