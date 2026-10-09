@@ -298,7 +298,7 @@ function Index() {
       ctx.scale(sc, 2 - sc);
       ctx.font = `${cell * 0.92}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Noto Emoji",sans-serif`;
       ctx.fillStyle = T.text;
-      ctx.fillText(head?.icon || "🙂", 0, 0);
+      ctx.fillText(head?.icon || "🤖", 0, 0);
       ctx.restore();
     } else {
       const neck = g.snake[1];
