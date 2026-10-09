@@ -54,10 +54,10 @@ export class GameAudio {
     const step = 60 / 128 / 2; // eighth notes at 128 BPM
     while (this.nextTime < this.ctx.currentTime + 0.2) {
       const t = this.nextTime, b = this.beat;
-      const root = GameAudio.BASS[Math.floor(b / 4) % 8];
+      const root = GameAudio.BASS[Math.floor(b / 4) % 8] ?? 45;
       const hz = (m: number) => 440 * 2 ** ((m - 69) / 12);
       if (b % 2 === 0) this.tone(hz(root), t, step * 1.8, "triangle", 0.5, this.musicGain);
-      this.tone(hz(root + 24 + GameAudio.ARP[b % 8]), t, step * 0.9, "square", 0.12, this.musicGain);
+      this.tone(hz(root + 24 + (GameAudio.ARP[b % 8] ?? 0)), t, step * 0.9, "square", 0.12, this.musicGain);
       this.tone(8000, t, 0.03, "square", b % 4 === 2 ? 0.06 : 0.025, this.musicGain);
       this.nextTime += step; this.beat++;
     }
