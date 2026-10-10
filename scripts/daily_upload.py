@@ -1,4 +1,4 @@
-"""Record one Robo Snake game from the published site and upload it to YouTube.
+"""Record one Snake game from the published site and upload it to YouTube.
 
 Env: SITE_URL, VIDEO (job name), YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN, PRIVACY (optional)
 """
@@ -63,43 +63,43 @@ def main() -> None:
     size = f"{cfg['w']}x{cfg['h']}"
 
     SHORT_TITLES = [
-        "This Robot NEVER Loses at Snake! 🤖🐍 {mode} {size} #Shorts",
-        "Robot Fills the ENTIRE Snake Board! 😱 {mode} {size} #Shorts",
-        "Perfect Snake Run — Zero Mistakes! 🐍 {mode} {size} #Shorts",
-        "Watch This Unbeatable Snake! 🔥 {mode} {size} #Shorts",
-        "Snake Solved Like a Boss! 🏆 {mode} {size} #Shorts",
-        "The Most Satisfying Snake Game Ever! ✨ {mode} {size} #Shorts",
-        "Can This Robot Snake Ever Die? NO! 🤯 {mode} {size} #Shorts",
-        "Snake Game But a Robot Plays It PERFECTLY 🐍 {mode} {size} #Shorts",
+        "I NEVER Lose at Snake! 🐍 {mode} {size} #Shorts",
+        "I Filled the ENTIRE Snake Board! 😱 {mode} {size} #Shorts",
+        "My Perfect Snake Run — Zero Mistakes! 🐍 {mode} {size} #Shorts",
+        "I Can't Lose at Snake Anymore! 🔥 {mode} {size} #Shorts",
+        "I Solved Snake Like a Boss! 🏆 {mode} {size} #Shorts",
+        "The Most Satisfying Snake Run I've Ever Done! ✨ {mode} {size} #Shorts",
+        "I Played Snake Until the Board Was FULL 🤯 {mode} {size} #Shorts",
+        "Snake on {size} — I Didn't Make One Mistake 🐍 {mode} #Shorts",
     ]
     LONG_TITLES = [
-        "Robot Beats Snake Completely — Full Board {size} {mode} 🐍🏆",
-        "Perfect Snake Gameplay — No Mistakes, Full Board {size} {mode}",
-        "Robot Plays Snake FLAWLESSLY Until the Board Is Full! {size} {mode} 🐍",
-        "The Ultimate Snake Run — {size} {mode} Perfect Game, No Mistakes 🤖",
-        "Satisfying Snake Fills Every Single Cell — {size} {mode} 🏆",
-        "How to Solve Snake Perfectly — {size} {mode} Full Gameplay 🐍",
+        "I Beat Snake Completely — Full Board {size} {mode} 🐍🏆",
+        "My Perfect Snake Run — No Mistakes, Full Board {size} {mode}",
+        "I Played Snake FLAWLESSLY Until the Board Was Full! {size} {mode} 🐍",
+        "My Longest Snake Run Yet — {size} {mode} Perfect Game 🏆",
+        "I Filled Every Single Cell — Satisfying Snake {size} {mode} 🏆",
+        "How I Solve Snake Perfectly — {size} {mode} Full Gameplay 🐍",
     ]
     titles = SHORT_TITLES if cfg["format"] == "shorts" else LONG_TITLES
     title = random.choice(titles).format(mode=mode, size=size)
 
     HOOKS = [
-        "This robot has NEVER lost a single game of Snake.",
-        "Watch it fill every single cell without one mistake.",
-        "The most satisfying Snake run you'll see today.",
+        "I have NEVER lost a single game of Snake.",
+        "I filled every single cell without one mistake.",
+        "This is the most satisfying Snake run I've ever done.",
         "Zero deaths. Zero errors. Pure perfection.",
         "One snake, one board, zero mistakes.",
     ]
-    TAGS = ["#snake", "#snakegame", "#robot", "#satisfying", "#gaming",
-            "#gameplay", "#perfectgame", "#nostalgia", "#arcade", "#viral", "#fyp", "#asmr"]
+    TAGS = ["#snake", "#snakegame", "#satisfying", "#gaming",
+            "#gameplay", "#perfectgame", "#nostalgia", "#arcade", "#viral", "#fyp", "#asmr", "#gamer"]
     desc = (
         f"{random.choice(HOOKS)}\n\n"
-        f"Robo Snake: an unbeatable robot fills the entire {size} board in {mode} mode.\n"
+        f"I played Snake on a {size} board in {mode} mode and filled every single cell.\n"
         f"Subscribe for daily satisfying Snake gameplay! 🔔\n\n"
         f"{day}\n\n" + " ".join(random.sample(TAGS, 6))
     )
-    vid = upload(out, title, desc, ["snake", "snake game", "robot", "satisfying",
-                                    "perfect game", "arcade", "gameplay", "classic snake", mode])
+    vid = upload(out, title, desc, ["snake", "snake game", "satisfying", "perfect game",
+                                    "arcade", "gameplay", "classic snake", mode])
     print(f"Uploaded {name}: https://youtu.be/{vid}")
 
 
