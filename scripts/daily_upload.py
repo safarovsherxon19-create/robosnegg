@@ -61,12 +61,45 @@ def main() -> None:
     mode = "2x Classic" if cfg["mode"] == "double" else "Classic"
     day = datetime.date.today().isoformat()
     size = f"{cfg['w']}x{cfg['h']}"
-    if cfg["format"] == "shorts":
-        title = f"AI Robot Fills the Whole Snake Board! 🐍 {mode} {size} #Shorts"
-    else:
-        title = f"Perfect Snake Game by AI Robot — {size} {mode} Full Board 🐍🏆"
-    desc = f"Robo Snake: an unbeatable robot fills the entire {size} board in {mode} mode.\n{day}\n#snake #ai #satisfying"
-    vid = upload(out, title, desc, ["snake", "snake game", "ai", "robot", "satisfying", mode])
+
+    SHORT_TITLES = [
+        "This AI NEVER Loses at Snake! 🤖🐍 {mode} {size} #Shorts",
+        "Robot Fills the ENTIRE Snake Board! 😱 {mode} {size} #Shorts",
+        "Perfect Snake Run by AI — Zero Mistakes! 🐍 {mode} {size} #Shorts",
+        "Watch This Unbeatable Snake AI! 🔥 {mode} {size} #Shorts",
+        "AI Solves Snake Like a Boss! 🏆 {mode} {size} #Shorts",
+        "The Most Satisfying Snake Game Ever! ✨ {mode} {size} #Shorts",
+        "Can This Robot Snake Ever Die? NO! 🤯 {mode} {size} #Shorts",
+        "Snake Game But a Robot Plays It PERFECTLY 🐍 {mode} {size} #Shorts",
+    ]
+    LONG_TITLES = [
+        "AI Robot Beats Snake Completely — Full Board {size} {mode} 🐍🏆",
+        "Perfect Snake Gameplay by Unbeatable AI — {size} {mode} Full Run",
+        "Robot Plays Snake FLAWLESSLY Until the Board Is Full! {size} {mode} 🐍",
+        "The Ultimate Snake AI — {size} {mode} Perfect Game, No Mistakes 🤖",
+        "Satisfying Snake AI Fills Every Single Cell — {size} {mode} 🏆",
+        "How an AI Solves Snake Perfectly — {size} {mode} Full Gameplay 🐍",
+    ]
+    titles = SHORT_TITLES if cfg["format"] == "shorts" else LONG_TITLES
+    title = random.choice(titles).format(mode=mode, size=size)
+
+    HOOKS = [
+        "This robot has NEVER lost a single game of Snake.",
+        "Watch the AI fill every single cell without one mistake.",
+        "The most satisfying Snake run you'll see today.",
+        "Zero deaths. Zero errors. Pure perfection.",
+        "An unbeatable algorithm vs the classic Snake game.",
+    ]
+    TAGS = ["#snake", "#snakegame", "#ai", "#robot", "#satisfying", "#gaming",
+            "#gameplay", "#perfectgame", "#algorithm", "#nostalgia", "#arcade", "#coding"]
+    desc = (
+        f"{random.choice(HOOKS)}\n\n"
+        f"Robo Snake: an unbeatable robot fills the entire {size} board in {mode} mode.\n"
+        f"Subscribe for daily satisfying AI gameplay! 🔔\n\n"
+        f"{day}\n\n" + " ".join(random.sample(TAGS, 6))
+    )
+    vid = upload(out, title, desc, ["snake", "snake game", "ai", "robot", "satisfying",
+                                    "snake ai", "perfect game", "arcade", mode])
     print(f"Uploaded {name}: https://youtu.be/{vid}")
 
 
