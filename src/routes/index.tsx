@@ -460,7 +460,7 @@ function Index() {
           </Button>
         )}
         {video && (
-          <Button asChild size="lg" className="h-auto min-h-10 max-w-full whitespace-normal text-center font-bold"><a href={video.url} download={`robo-snake-${video.format}.${video.ext}`}>
+          <Button asChild size="lg" className="h-auto min-h-10 max-w-full whitespace-normal text-center font-bold"><a href={video.url} download={`snake-${video.format}-${video.mode}.${video.ext}`}>
             ⬇ Download video ({FORMATS[video.format].label})
           </a></Button>
         )}
