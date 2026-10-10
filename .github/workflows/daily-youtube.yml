@@ -1,0 +1,28 @@
+name: Daily Robo Snake uploads
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # every day 06:00 UTC (11:00 Tashkent)
+  workflow_dispatch:
+
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        video: [short-classic-1, short-classic-2, short-double-1, short-double-2, long-classic-16, long-double-20]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install playwright requests && python -m playwright install --with-deps chromium
+      - run: python scripts/daily_upload.py
+        env:
+          SITE_URL: https://robosnegg.lovable.app
+          VIDEO: ${{ matrix.video }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}

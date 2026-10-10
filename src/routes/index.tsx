@@ -156,6 +156,30 @@ function Index() {
     if (autoRec && !recording) autoRecTimer.current = setTimeout(startRec, 50);
   };
 
+  // Automation: ?auto=1&w=10&h=10&mode=classic|double&format=shorts|long&speed=15&theme=neon&head=snake
+  const [autoGo, setAutoGo] = useState(false);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (!q.has("auto")) return;
+    const w = Number(q.get("w")) || 10, h = Number(q.get("h")) || 10;
+    const i = SIZES.findIndex((s) => s.w === w && s.h === h);
+    if (i >= 0) setSizeI(i); else { setSizeI(SIZES.length - 1); setCustomW(String(w)); setCustomH(String(h)); }
+    setMode(q.get("mode") === "double" ? "double" : "classic");
+    setFormat(q.get("format") === "long" ? "long" : "shorts");
+    const sp = Math.min(600, Math.max(1, Number(q.get("speed")) || 15));
+    setSpeed(sp); setSpeedText(String(sp));
+    const th = q.get("theme") || "neon"; if (th in THEMES) setTheme(th as keyof typeof THEMES);
+    const hd = q.get("head") || "snake"; if (HEADS.some((x) => x.id === hd)) setHeadStyle(hd);
+    setAutoRec(true);
+    setAutoGo(true);
+  }, []);
+  useEffect(() => {
+    if (!autoGo) return;
+    setAutoGo(false);
+    start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoGo]);
+
   useEffect(() => {
     const styles = getComputedStyle(document.documentElement);
     const token = (name: string) => styles.getPropertyValue(name).trim();
