@@ -2,7 +2,7 @@
 
 Env: SITE_URL, VIDEO (job name), YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN, PRIVACY (optional)
 """
-import asyncio, datetime, json, os, sys
+import asyncio, datetime, json, os, random, sys
 from pathlib import Path
 import requests
 from playwright.async_api import async_playwright
