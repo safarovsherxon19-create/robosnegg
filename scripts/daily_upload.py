@@ -1,4 +1,4 @@
-"""Record one Robo Snake game from the published site and upload it to YouTube.
+"""Record one Snake game from the published site and upload it to YouTube.
 
 Env: SITE_URL, VIDEO (job name), YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN, PRIVACY (optional)
 """
