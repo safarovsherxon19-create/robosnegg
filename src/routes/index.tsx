@@ -240,7 +240,7 @@ function Index() {
     const hud = vertical ? 260 : 120;
     ctx.fillStyle = T.text; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.font = `800 ${vertical ? 72 : 56}px system-ui, "Noto Emoji", sans-serif`;
-    ctx.fillText("🤖 ROBO SNAKE", W / 2, hud * 0.4);
+    ctx.fillText("🐍 SNAKE", W / 2, hud * 0.4);
     if (!g) {
       ctx.font = "500 40px system-ui"; ctx.fillText("Press Start to begin", W / 2, H / 2); return;
     }
@@ -322,7 +322,7 @@ function Index() {
       ctx.scale(sc, 2 - sc);
       ctx.font = `${cell * 0.92}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Noto Emoji",sans-serif`;
       ctx.fillStyle = T.text;
-      ctx.fillText(head?.icon || "🤖", 0, 0);
+      ctx.fillText(head?.icon || "🐍", 0, 0);
       ctx.restore();
     } else {
       const neck = g.snake[1];
