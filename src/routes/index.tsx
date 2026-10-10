@@ -11,9 +11,9 @@ import "@fontsource/noto-emoji/400.css";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Robo Snake — AI Snake Game & Video Recording" },
+      { title: "Robo Snake — Unbeatable Snake Game & Video Recording" },
       { name: "description", content: "Watch an expert robot fill the Snake board and record high-quality videos for YouTube and Shorts." },
-      { property: "og:title", content: "Robo Snake — AI Snake Game" },
+      { property: "og:title", content: "Robo Snake — Unbeatable Snake Game" },
       { property: "og:description", content: "An unbeatable robot fills the board. Customize colors and heads, then record in landscape or Shorts format." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
