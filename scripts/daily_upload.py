@@ -18,7 +18,7 @@ VIDEOS = {
 
 
 async def record(site: str, cfg: dict, out: Path) -> None:
-    q = f"auto=1&w={cfg['w']}&h={cfg['h']}&mode={cfg['mode']}&format={cfg['format']}&speed=15&theme=neon&head=snake"
+    q = f"auto=1&w={cfg['w']}&h={cfg['h']}&mode={cfg['mode']}&format={cfg['format']}&speed=15&theme=google&head=snake"
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--autoplay-policy=no-user-gesture-required"])
         ctx = await browser.new_context(viewport={"width": 1280, "height": 1800}, accept_downloads=True)
