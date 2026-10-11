@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Game, type Mode } from "@/lib/snake";
 import { GameAudio } from "@/lib/audio";
+import { digestionPulse } from "@/lib/digestion";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ChevronDown, Pause, Play, Square, RotateCcw } from "lucide-react";
@@ -67,6 +68,7 @@ function Index() {
   const winColors = useRef({ overlay: "", text: "" });
   const mouthCols = useRef({ mouth: "", tongue: "", teeth: "" });
   const eatAt = useRef(-1000);
+  const stepFraction = useRef(0);
   const [autoRec, setAutoRec] = useState(true);
   const [mode, setMode] = useState<Mode>("classic");
   const [music, setMusic] = useState(true);
@@ -143,6 +145,8 @@ function Index() {
     }
     setSizeError("");
     gameRef.current = new Game(s.w, s.h, gameRef.current?.variant, mode);
+    stepFraction.current = 0;
+    eatAt.current = -1000;
     const au = ensureAudio();
     au.stopMusic();
     if (music) au.startMusic();
@@ -202,13 +206,14 @@ function Index() {
   }, [format]);
 
   useEffect(() => {
-    let raf = 0, last = performance.now(), acc = 0;
+    let raf = 0, last = performance.now(), acc = stepFraction.current;
     const loop = (t: number) => {
       const g = gameRef.current;
       const dt = Math.min(0.1, (t - last) / 1000); last = t;
       if (g && running && !paused && !g.won) {
         acc += dt * cfg.current.speed;
         let n = Math.floor(acc); acc -= n;
+        stepFraction.current = acc;
         let ate = false, turned = false;
         while (n-- > 0 && !g.won) { ate = g.step() || ate; turned = g.turned || turned; }
         if (turned && !ate) audioRef.current?.turn();
@@ -279,14 +284,24 @@ function Index() {
         ctx.fillRect(ox + minx * cell + gap + (dx ? cell / 2 : 0), oy + miny * cell + gap + (dy ? cell / 2 : 0), dx ? cell : cell - gap * 2, dy ? cell : cell - gap * 2);
       }
     }
-    // Swallowed fruit travels down the body as a bulge.
+    // Continuous swelling moves relative to the body, including around bends.
+    // One index per step would keep it fixed at the original bite's board cell.
     for (const b of g.bulges) {
-      const i = g.steps - b, p = g.snake[i];
-      if (!p || i < 1) continue;
-      const k = i / Math.max(1, L - 1);
-      const col = T.a.map((v, j) => Math.round(v + (T.b[j] - v) * k));
-      ctx.fillStyle = `rgb(${col.join(",")})`;
-      ctx.beginPath(); ctx.arc(ox + p.x * cell + cell / 2, oy + p.y * cell + cell / 2, cell * 0.58 * (1 - 0.3 * k), 0, Math.PI * 2); ctx.fill();
+      const pulse = digestionPulse(g.steps + stepFraction.current - b, L);
+      if (!pulse) continue;
+      for (let offset = -0.65; offset <= 0.65; offset += 0.1) {
+        const at = pulse.position + offset;
+        if (at < 0 || at > L - 1) continue;
+        const i = Math.floor(at), p = g.snake[i], q = g.snake[Math.min(i + 1, L - 1)];
+        if (!p || !q) continue;
+        const f = at - i, k = at / Math.max(1, L - 1);
+        const col = T.a.map((v, j) => Math.round(v + (T.b[j] - v) * k));
+        ctx.fillStyle = `rgb(${col.join(",")})`;
+        const radius = cell * (0.42 + pulse.swelling * Math.exp(-8 * offset * offset));
+        ctx.beginPath();
+        ctx.arc(ox + (p.x + (q.x - p.x) * f + 0.5) * cell, oy + (p.y + (q.y - p.y) * f + 0.5) * cell, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     const h = g.snake[0];
     const near = g.foods.reduce((m, f) => Math.min(m, Math.abs(f.p.x - h.x) + Math.abs(f.p.y - h.y)), Infinity);
