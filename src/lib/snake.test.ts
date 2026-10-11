@@ -20,11 +20,11 @@ describe("randomized safe robot", () => {
     }
   });
 
-  it("double mode spawns 1, then 2, then 4 fruit", () => {
+  it("double mode starts with 3 fruit and replaces each eaten fruit at once", () => {
     const game = new Game(20, 20, undefined, "double");
-    const waves: number[] = [game.foods.length];
-    while (waves.length < 3) { const before = game.foods.length; game.step(); if (game.foods.length > before) waves.push(game.foods.length); }
-    expect(waves).toEqual([1, 2, 4]);
+    expect(game.foods.length).toBe(3);
+    let eats = 0;
+    while (eats < 20) { if (game.step()) eats++; expect(game.foods.length).toBe(3); }
   });
 
   it("classic mode always shows exactly one fruit", () => {

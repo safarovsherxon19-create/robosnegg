@@ -145,6 +145,8 @@
 
 /* Canvas artwork palettes, shared by preview and video recording. */
 :root {
+  --snake-google-bg: #578a34; --snake-google-board: #aad751; --snake-google-grid: #a2d149; --snake-google-a: 78,124,246; --snake-google-b: 50,90,205; --snake-google-text: #ffffff;
+  --snake-eye: #ffffff; --snake-pupil: #1e2a4a;
   --snake-neon-bg: #0b0f1a; --snake-neon-grid: #141a2b; --snake-neon-a: 120,255,170; --snake-neon-b: 40,170,255; --snake-neon-text: #e8fff3;
   --snake-sunset-bg: #1a0d14; --snake-sunset-grid: #25131d; --snake-sunset-a: 255,200,80; --snake-sunset-b: 255,70,120; --snake-sunset-text: #fff2e0;
   --snake-classic-bg: #9bbc0f; --snake-classic-grid: #8bac0f; --snake-classic-a: 48,98,48; --snake-classic-b: 15,56,15; --snake-classic-text: #0f380f;
@@ -160,6 +162,7 @@
 }
 .snake-swatch { background: linear-gradient(135deg, rgb(var(--swatch-a)), rgb(var(--swatch-b))); }
 .snake-emoji { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Noto Emoji", sans-serif; }
+.snake-swatch[data-theme="google"] { --swatch-a: var(--snake-google-a); --swatch-b: var(--snake-google-b); }
 .snake-swatch[data-theme="neon"] { --swatch-a: var(--snake-neon-a); --swatch-b: var(--snake-neon-b); }
 .snake-swatch[data-theme="sunset"] { --swatch-a: var(--snake-sunset-a); --swatch-b: var(--snake-sunset-b); }
 .snake-swatch[data-theme="classic"] { --swatch-a: var(--snake-classic-a); --swatch-b: var(--snake-classic-b); }

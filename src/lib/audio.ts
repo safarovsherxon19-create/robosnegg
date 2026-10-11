@@ -1,4 +1,5 @@
-import biteAsset from "@/assets/robo-snake-bite.mp3.asset.json";
+import biteAsset from "@/assets/snake-eat.mp3.asset.json";
+import turnAsset from "@/assets/snake-turn.mp3.asset.json";
 // Procedural game audio (Web Audio). Everything routes to speakers AND a
 // MediaStream so recordings include the same sound the player hears.
 export class GameAudio {
@@ -41,6 +42,19 @@ export class GameAudio {
     this.biteLoading = true;
     fetch(biteAsset.url).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a))
       .then((b) => { this.biteBuf = b; }).catch(() => {});
+    fetch(turnAsset.url).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a))
+      .then((b) => { this.turnBuf = b; }).catch(() => {});
+  }
+  private turnBuf: AudioBuffer | null = null;
+  private lastTurn = 0;
+  /** Soft movement blip when the snake changes direction (throttled at high speed). */
+  turn() {
+    if (!this.turnBuf || this.ctx.currentTime - this.lastTurn < 0.09) return;
+    this.lastTurn = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource(); src.buffer = this.turnBuf;
+    src.playbackRate.value = 0.95 + Math.random() * 0.1;
+    const g = this.ctx.createGain(); g.gain.value = 0.55;
+    src.connect(g); g.connect(this.master); src.start();
   }
 
   /** Game bite: enhanced real apple crunch, pitch-varied each bite, plus a juicy pop. */
@@ -49,11 +63,9 @@ export class GameAudio {
     if (this.biteBuf) {
       const t0 = this.ctx.currentTime;
       const src = this.ctx.createBufferSource(); src.buffer = this.biteBuf;
-      src.playbackRate.value = 1.08 + Math.random() * 0.22; // snappier, never identical
+      src.playbackRate.value = 0.96 + Math.random() * 0.1; // never identical
       const g = this.ctx.createGain(); g.gain.value = 1.0;
       src.connect(g); g.connect(this.master); src.start(t0);
-      // Tiny arcade "pop" on top so it fits the game feel.
-      this.tone(620 + Math.random() * 120, t0, 0.09, "triangle", 0.12, this.master, 1250);
       return;
     }
     this.synthEat();

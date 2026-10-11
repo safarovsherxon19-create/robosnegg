@@ -36,7 +36,7 @@ const FORMATS = {
   shorts: { w: 1080, h: 1920, label: "YouTube Shorts 9:16" },
 };
 const THEMES = {
-  neon: "Neon", sunset: "Sunset", classic: "Classic", ocean: "Ocean",
+  google: "Google", neon: "Neon", sunset: "Sunset", classic: "Classic", ocean: "Ocean",
   candy: "Candy", fire: "Fire", lime: "Lime", ice: "Ice", gold: "Gold", rainbow: "Rainbow",
 };
 const HEADS = [
@@ -59,7 +59,7 @@ function Index() {
   const autoRecTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sizeI, setSizeI] = useState(2);
   const [format, setFormat] = useState<keyof typeof FORMATS>("long");
-  const [theme, setTheme] = useState<keyof typeof THEMES>("neon");
+  const [theme, setTheme] = useState<keyof typeof THEMES>("google");
   const [speed, setSpeed] = useState(30);
   const [speedText, setSpeedText] = useState("30");
   const [headStyle, setHeadStyle] = useState("snake");
@@ -168,7 +168,7 @@ function Index() {
     setFormat(q.get("format") === "long" ? "long" : "shorts");
     const sp = Math.min(600, Math.max(1, Number(q.get("speed")) || 15));
     setSpeed(sp); setSpeedText(String(sp));
-    const th = q.get("theme") || "neon"; if (th in THEMES) setTheme(th as keyof typeof THEMES);
+    const th = q.get("theme") || "google"; if (th in THEMES) setTheme(th as keyof typeof THEMES);
     const hd = q.get("head") || "snake"; if (HEADS.some((x) => x.id === hd)) setHeadStyle(hd);
     setAutoRec(true);
     setAutoGo(true);
@@ -185,13 +185,13 @@ function Index() {
     const token = (name: string) => styles.getPropertyValue(name).trim();
     for (const key of Object.keys(THEMES)) {
       paletteRef.current[key] = {
-        bg: token(`--snake-${key}-bg`), grid: token(`--snake-${key}-grid`),
+        bg: token(`--snake-${key}-bg`), board: token(`--snake-${key}-board`) || token(`--snake-${key}-bg`), grid: token(`--snake-${key}-grid`),
         a: token(`--snake-${key}-a`).split(",").map(Number),
         b: token(`--snake-${key}-b`).split(",").map(Number), text: token(`--snake-${key}-text`),
       };
     }
     winColors.current = { overlay: token("--snake-win-overlay"), text: token("--snake-win-text") };
-    mouthCols.current = { mouth: token("--snake-mouth"), tongue: token("--snake-tongue"), teeth: token("--snake-teeth") };
+    mouthCols.current = { mouth: token("--snake-mouth"), tongue: token("--snake-tongue"), teeth: token("--snake-teeth"), eye: token("--snake-eye"), pupil: token("--snake-pupil") };
   }, []);
 
   useEffect(() => {
@@ -209,8 +209,9 @@ function Index() {
       if (g && running && !paused && !g.won) {
         acc += dt * cfg.current.speed;
         let n = Math.floor(acc); acc -= n;
-        let ate = false;
-        while (n-- > 0 && !g.won) ate = g.step() || ate;
+        let ate = false, turned = false;
+        while (n-- > 0 && !g.won) { ate = g.step() || ate; turned = g.turned || turned; }
+        if (turned && !ate) audioRef.current?.turn();
         if (ate) { audioRef.current?.eat(); eatAt.current = t; }
         setStats({ len: g.snake.length, total: g.N, eaten: g.eaten });
       }
@@ -253,6 +254,7 @@ function Index() {
     const cell = Math.floor(Math.min((W - pad * 2) / g.W, (H - hud - pad * 2) / g.H));
     const bw = cell * g.W, bh = cell * g.H;
     const ox = Math.floor((W - bw) / 2), oy = Math.floor(hud + (H - hud - bh) / 2);
+    ctx.fillStyle = T.board; ctx.fillRect(ox, oy, bw, bh);
     ctx.fillStyle = T.grid;
     for (let y = 0; y < g.H; y++) for (let x = 0; x < g.W; x++) if ((x + y) % 2 === 0) ctx.fillRect(ox + x * cell, oy + y * cell, cell, cell);
     ctx.strokeStyle = T.text; ctx.globalAlpha = 0.25; ctx.lineWidth = 3; ctx.strokeRect(ox - 2, oy - 2, bw + 4, bh + 4); ctx.globalAlpha = 1;
@@ -276,6 +278,15 @@ function Index() {
         const dx = Math.abs(p.x - q.x), dy = Math.abs(p.y - q.y);
         ctx.fillRect(ox + minx * cell + gap + (dx ? cell / 2 : 0), oy + miny * cell + gap + (dy ? cell / 2 : 0), dx ? cell : cell - gap * 2, dy ? cell : cell - gap * 2);
       }
+    }
+    // Swallowed fruit travels down the body as a bulge.
+    for (const b of g.bulges) {
+      const i = g.steps - b, p = g.snake[i];
+      if (!p || i < 1) continue;
+      const k = i / Math.max(1, L - 1);
+      const col = T.a.map((v, j) => Math.round(v + (T.b[j] - v) * k));
+      ctx.fillStyle = `rgb(${col.join(",")})`;
+      ctx.beginPath(); ctx.arc(ox + p.x * cell + cell / 2, oy + p.y * cell + cell / 2, cell * 0.58 * (1 - 0.3 * k), 0, Math.PI * 2); ctx.fill();
     }
     const h = g.snake[0];
     const near = g.foods.reduce((m, f) => Math.min(m, Math.abs(f.p.x - h.x) + Math.abs(f.p.y - h.y)), Infinity);
@@ -330,9 +341,12 @@ function Index() {
       ctx.save();
       ctx.translate(ox + h.x * cell + cell / 2, oy + h.y * cell + cell / 2);
       ctx.rotate(angle);
-      ctx.fillStyle = T.bg;
+      // Big cartoon eyes (white + pupil looking forward), like the classic browser snake.
       for (const sign of [-1, 1]) {
-        ctx.beginPath(); ctx.arc(cell * 0.16, sign * cell * 0.18, cell * 0.09, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = mouthCols.current.eye;
+        ctx.beginPath(); ctx.arc(cell * 0.05, sign * cell * 0.24, cell * 0.17, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = mouthCols.current.pupil;
+        ctx.beginPath(); ctx.arc(cell * 0.11, sign * cell * 0.24, cell * 0.085, 0, Math.PI * 2); ctx.fill();
       }
       ctx.restore();
     }
