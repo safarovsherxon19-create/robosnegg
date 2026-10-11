@@ -34,7 +34,10 @@ export class Game {
   order: number[]; path: P[];
   snake: P[] = []; // head first
   foods: Food[] = [];
-  mode: Mode; wave = 1;
+  mode: Mode;
+  /** Step numbers when fruit was eaten — drives the swallow bulge travelling down the body. */
+  bulges: number[] = [];
+  turned = false;
   eaten = 0; won = false; steps = 0;
   occ: Uint8Array;
   variant: number;
@@ -57,7 +60,8 @@ export class Game {
     const free: P[] = [];
     for (let y = 0; y < this.H; y++) for (let x = 0; x < this.W; x++) { const i = y * this.W + x; if (!this.occ[i] && !taken.has(i)) free.push({ x, y }); }
     if (!free.length && !this.foods.length) { this.won = true; return; }
-    const count = Math.min(free.length, this.mode === "double" ? this.wave : 1);
+    const want = this.mode === "double" ? 3 : 1; // double: always keep 3 fruit on the board
+    const count = Math.min(free.length, want - this.foods.length);
     for (let k = 0; k < count; k++) {
       const j = Math.floor(Math.random() * free.length);
       const [p] = free.splice(j, 1);
@@ -102,6 +106,8 @@ export class Game {
   step(): boolean { // returns true if ate
     if (this.won) return false;
     const n = this.next();
+    const h0 = this.snake[0], h1 = this.snake[1];
+    this.turned = !!h1 && (n.x - h0.x !== h0.x - h1.x || n.y - h0.y !== h0.y - h1.y);
     this.steps++;
     const fi = this.foodAt(n);
     const ate = fi >= 0;
@@ -109,8 +115,10 @@ export class Game {
     this.snake.unshift(n); this.occ[this.idx(n)] = 1;
     if (ate) {
       this.foods.splice(fi, 1); this.eaten++;
-      if (!this.foods.length) { if (this.mode === "double") this.wave *= 2; this.spawnWave(); }
+      this.bulges.push(this.steps);
+      this.spawnWave();
     }
+    this.bulges = this.bulges.filter((b) => this.steps - b < this.snake.length);
     if (this.snake.length >= this.N) { this.won = true; this.foods = []; }
     return ate;
   }
