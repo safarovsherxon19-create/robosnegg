@@ -252,7 +252,7 @@ function Index() {
     ctx.fillStyle = T.bg; ctx.fillRect(0, 0, W, H);
     const g = gameRef.current;
     const vertical = H > W;
-    const hud = vertical ? 280 : 190;
+    const hud = vertical ? 280 : 210;
     ctx.fillStyle = T.text; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     if (!g) {
       ctx.font = `800 ${vertical ? 72 : 56}px system-ui, "Noto Emoji", sans-serif`;

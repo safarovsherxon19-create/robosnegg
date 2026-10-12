@@ -15,3 +15,4 @@
 - Initialize half-filled games with a contiguous reversed slice of the randomized Hamiltonian path to retain collision-free cycle ordering.
 - Derive dynamic banner stages in a browser-safe helper and draw banners above the board on the recording canvas so preview and exported video match.
 - Route the shared ASMR mix through one peak limiter before splitting to speakers and recording to preserve identical, unclipped audio.
+- Compute daily upload configurations centrally in the Python runner with date-based palette rotation and banner variants so independent workflow jobs stay distinct.
