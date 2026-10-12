@@ -3,22 +3,71 @@
 Env: SITE_URL, VIDEO (job name), YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN, PRIVACY (optional)
 """
 import asyncio, datetime, json, os, random, sys
+from urllib.parse import urlencode
 from pathlib import Path
 import requests
 from playwright.async_api import async_playwright
 
 VIDEOS = {
     "short-classic-1": dict(w=10, h=10, mode="classic", format="shorts"),
-    "short-classic-2": dict(w=10, h=10, mode="classic", format="shorts"),
     "short-double-1": dict(w=10, h=10, mode="double", format="shorts"),
-    "short-double-2": dict(w=10, h=10, mode="double", format="shorts"),
-    "long-classic-16": dict(w=16, h=16, mode="classic", format="long"),
-    "long-double-20": dict(w=20, h=20, mode="double", format="long"),
+    "long-classic-32": dict(w=32, h=18, mode="classic", format="long"),
+    "long-double-32": dict(w=32, h=18, mode="double", format="long"),
 }
+# Only existing app palettes. Consecutive days change both Shorts colors.
+SHORT_PALETTES = ["candy", "ice", "lime", "rainbow", "ocean", "fire", "gold", "sunset", "neon", "google", "classic"]
+STICKERS = ["🐍✨", "🍎🔥", "🎯🐍", "🏆✨", "🍒🎮", "💯🐍", "🍉✨", "🎧🍎"]
+TITLE_HOOKS = [
+    "Can I Fill the Last Cell?", "I Started at 50% — Can I Reach 100%?",
+    "My Final Bite Is So Satisfying", "I Have Almost No Space Left",
+    "I Turned Half a Board Into a Perfect Finish", "My Snake Run Gets Tighter Every Bite",
+    "I Saved the Most Satisfying Bite for Last", "My 50% to 100% Snake Challenge",
+    "I Filled Every Gap — Listen to Those Bites", "My Perfect Finish: Every Cell Filled",
+    "I Can't Stop Watching This Final Bite", "My Snake Board Has Nowhere Left to Go",
+]
+HASHTAGS = ["#Snake", "#SnakeGame", "#Satisfying", "#ASMR", "#Gaming", "#Gameplay",
+            "#PerfectGame", "#Arcade", "#OddlySatisfying", "#Relaxing", "#SnakeChallenge", "#NoCommentary"]
+
+
+def video_config(name: str, day: datetime.date) -> dict:
+    cfg = {**VIDEOS[name], "speed": 15, "head": "snake", "theme": "neon"}
+    index = list(VIDEOS).index(name)
+    if cfg["format"] == "shorts":
+        offset = 0 if cfg["mode"] == "classic" else 5
+        cfg["theme"] = SHORT_PALETTES[(day.toordinal() + offset) % len(SHORT_PALETTES)]
+    cfg["banner"] = (day.toordinal() + index * 2) % 8
+    return cfg
+
+
+def recording_query(cfg: dict) -> str:
+    return urlencode({"auto": 1, **{k: cfg[k] for k in
+        ("w", "h", "mode", "format", "speed", "theme", "head", "banner")}})
+
+
+def video_metadata(name: str, cfg: dict, day: datetime.date) -> tuple[str, str, list[str]]:
+    index = list(VIDEOS).index(name)
+    rng = random.Random(f"{day.isoformat()}:{name}")
+    mode = "2x Classic" if cfg["mode"] == "double" else "Classic"
+    hook = TITLE_HOOKS[(day.toordinal() * 4 + index) % len(TITLE_HOOKS)]
+    sticker = STICKERS[(day.toordinal() + index) % len(STICKERS)]
+    suffix = " #Shorts" if cfg["format"] == "shorts" else ""
+    title = f"{hook} {sticker} | {mode}{suffix}"
+    tags = rng.sample(HASHTAGS, 5)
+    if suffix:
+        tags.append("#Shorts")
+    desc = (f"{hook} {sticker}\n\n"
+            f"I started with a half-full {cfg['w']}x{cfg['h']} board in {mode} and filled every last cell.\n"
+            "Crisp fruit bites, soft turns, and a perfect finish. 🎧\n\n"
+            f"{rng.choice(['Which bite was the most satisfying?', 'Can you spot the last empty cell?', 'Which color should I try next?'])}\n"
+            "Subscribe for daily satisfying Snake runs! 🐍\n\n"
+            f"{day.isoformat()}\n" + " ".join(tags))
+    return title, desc, ["snake", "snake game", "satisfying", "asmr", "fruit crunch",
+                         "perfect finish", "gaming", "no commentary", "snake challenge", mode]
+
 
 
 async def record(site: str, cfg: dict, out: Path) -> None:
-    q = f"auto=1&w={cfg['w']}&h={cfg['h']}&mode={cfg['mode']}&format={cfg['format']}&speed=15&theme=google&head=snake"
+    q = recording_query(cfg)
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--autoplay-policy=no-user-gesture-required"])
         ctx = await browser.new_context(viewport={"width": 1280, "height": 1800}, accept_downloads=True)
@@ -55,51 +104,12 @@ def upload(path: Path, title: str, desc: str, tags: list[str]) -> str:
 
 def main() -> None:
     name = os.environ["VIDEO"]
-    cfg = VIDEOS[name]
+    day = datetime.datetime.now(datetime.timezone.utc).date()
+    cfg = video_config(name, day)
     out = Path(f"/tmp/{name}.webm")
     asyncio.run(record(os.environ["SITE_URL"], cfg, out))
-    mode = "2x Classic" if cfg["mode"] == "double" else "Classic"
-    day = datetime.date.today().isoformat()
-    size = f"{cfg['w']}x{cfg['h']}"
-
-    SHORT_TITLES = [
-        "I NEVER Lose at Snake! 🐍 {mode} {size} #Shorts",
-        "I Filled the ENTIRE Snake Board! 😱 {mode} {size} #Shorts",
-        "My Perfect Snake Run — Zero Mistakes! 🐍 {mode} {size} #Shorts",
-        "I Can't Lose at Snake Anymore! 🔥 {mode} {size} #Shorts",
-        "I Solved Snake Like a Boss! 🏆 {mode} {size} #Shorts",
-        "The Most Satisfying Snake Run I've Ever Done! ✨ {mode} {size} #Shorts",
-        "I Played Snake Until the Board Was FULL 🤯 {mode} {size} #Shorts",
-        "Snake on {size} — I Didn't Make One Mistake 🐍 {mode} #Shorts",
-    ]
-    LONG_TITLES = [
-        "I Beat Snake Completely — Full Board {size} {mode} 🐍🏆",
-        "My Perfect Snake Run — No Mistakes, Full Board {size} {mode}",
-        "I Played Snake FLAWLESSLY Until the Board Was Full! {size} {mode} 🐍",
-        "My Longest Snake Run Yet — {size} {mode} Perfect Game 🏆",
-        "I Filled Every Single Cell — Satisfying Snake {size} {mode} 🏆",
-        "How I Solve Snake Perfectly — {size} {mode} Full Gameplay 🐍",
-    ]
-    titles = SHORT_TITLES if cfg["format"] == "shorts" else LONG_TITLES
-    title = random.choice(titles).format(mode=mode, size=size)
-
-    HOOKS = [
-        "I have NEVER lost a single game of Snake.",
-        "I filled every single cell without one mistake.",
-        "This is the most satisfying Snake run I've ever done.",
-        "Zero deaths. Zero errors. Pure perfection.",
-        "One snake, one board, zero mistakes.",
-    ]
-    TAGS = ["#snake", "#snakegame", "#satisfying", "#gaming",
-            "#gameplay", "#perfectgame", "#nostalgia", "#arcade", "#viral", "#fyp", "#asmr", "#gamer"]
-    desc = (
-        f"{random.choice(HOOKS)}\n\n"
-        f"I played Snake on a {size} board in {mode} mode and filled every single cell.\n"
-        f"Subscribe for daily satisfying Snake gameplay! 🔔\n\n"
-        f"{day}\n\n" + " ".join(random.sample(TAGS, 6))
-    )
-    vid = upload(out, title, desc, ["snake", "snake game", "satisfying", "perfect game",
-                                    "arcade", "gameplay", "classic snake", mode])
+    title, desc, tags = video_metadata(name, cfg, day)
+    vid = upload(out, title, desc, tags)
     print(f"Uploaded {name}: https://youtu.be/{vid}")
 
 
