@@ -25,8 +25,17 @@ export class GameAudio {
     limiter.attack.value = 0.003;
     limiter.release.value = 0.12;
     this.master.connect(limiter);
-    limiter.connect(this.ctx.destination);
-    limiter.connect(this.dest);
+    const ceiling = this.ctx.createWaveShaper();
+    const curve = new Float32Array(4096);
+    for (let i = 0; i < curve.length; i++) {
+      const x = i * 2 / (curve.length - 1) - 1;
+      curve[i] = 0.92 * Math.tanh(x / 0.92);
+    }
+    ceiling.curve = curve;
+    ceiling.oversample = "4x";
+    limiter.connect(ceiling);
+    ceiling.connect(this.ctx.destination);
+    ceiling.connect(this.dest);
     this.musicGain = this.ctx.createGain();
     this.musicGain.gain.value = ASMR_MIX.music;
     this.musicGain.connect(this.master);

@@ -1,8 +1,8 @@
 # Tasks
-- [ ] Start at 50% with safe full-board completion and preserve digestion visuals.
-- [ ] Add minimal dynamic recorded banners and strengthen ASMR.
-- [ ] Schedule two Shorts and two 32×18 Longs with varied Shorts colors and metadata.
-- [ ] Test rules and verify recording end-to-end.
+- [x] Start at 50% with safe full-board completion and preserve digestion visuals.
+- [x] Add minimal dynamic recorded banners and strengthen ASMR.
+- [x] Schedule two Shorts and two 32×18 Longs with varied Shorts colors and metadata.
+- [x] Test rules and verify recording end-to-end.
 - [x] Add pause/resume and end-game controls, including recording behavior.
 - [x] Translate app and recorded text to English and collapse color/head choices into menus.
 - [x] Verify pause, resume, ending, recording and selectors.
