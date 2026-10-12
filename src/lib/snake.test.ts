@@ -5,10 +5,28 @@ const sizes: [number, number][] = [[10, 10], [16, 16], [20, 20], [30, 30], [16, 
 const edgeSizes: [number, number][] = [[6, 5], [5, 6], [2, 8]];
 
 describe("randomized safe robot", () => {
-  it("starts both video modes at exactly 50% on 10x10 and 32x18 boards", () => {
+  it("starts only Shorts at exactly 50% for both modes", () => {
     for (const mode of ["classic", "double"] as const) {
-      expect(new Game(10, 10, undefined, mode).snake.length).toBe(50);
-      expect(new Game(32, 18, undefined, mode).snake.length).toBe(288);
+      expect(new Game(10, 10, undefined, mode, "shorts").snake.length).toBe(50);
+      expect(new Game(32, 18, undefined, mode, "shorts").progress).toBe(0.5);
+    }
+  });
+  it("starts Long at 0% progress with a small snake in both modes", () => {
+    for (const mode of ["classic", "double"] as const) {
+      const game = new Game(32, 18, undefined, mode, "long");
+      expect(game.snake.length).toBe(3);
+      expect(game.progress).toBe(0);
+    }
+  });
+  it("varies half-filled starting positions and does not reuse actual cycle layouts", () => {
+    let previous: Game | undefined;
+    const seen = new Set<string>();
+    for (let run = 0; run < 32; run++) {
+      const game = new Game(10, 10, previous?.variant, "classic", "shorts");
+      const signature = JSON.stringify(game.path);
+      expect(seen.has(signature)).toBe(false);
+      if (previous) expect(game.snake[0]).not.toEqual(previous.snake[0]);
+      seen.add(signature); previous = game;
     }
   });
   it("keeps every transformed cycle adjacent, closed and complete", () => {
@@ -42,7 +60,7 @@ describe("randomized safe robot", () => {
     for (const [w, h] of [...sizes, [12, 7], [9, 14]] as [number, number][]) {
       let previous: number | undefined;
       for (let run = 0; run < 8; run++) {
-        const game = new Game(w, h, previous, run % 2 ? "double" : "classic");
+        const game = new Game(w, h, previous, run % 2 ? "double" : "classic", run % 2 ? "shorts" : "long");
         expect(game.variant).not.toBe(previous);
         previous = game.variant;
         const limit = game.N * game.N;
@@ -56,7 +74,8 @@ describe("randomized safe robot", () => {
         }
         expect(game.won).toBe(true);
         expect(game.snake.length).toBe(w * h);
-        expect(game.eaten).toBe(w * h - Math.floor(w * h / 2));
+        expect(game.eaten).toBe(w * h - game.initialLength);
+        expect(game.progress).toBe(1);
       }
     }
   }, 60000);

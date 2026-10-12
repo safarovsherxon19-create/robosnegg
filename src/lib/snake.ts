@@ -29,6 +29,36 @@ export function buildCycle(W: number, H: number, variant = 0, offset = 0): { ord
 export type Mode = "classic" | "double";
 export type Food = { p: P; fruit: string };
 
+export type VideoFormat = "shorts" | "long";
+const runHistory = new Map<string, { used: Set<string>; head?: string }>();
+
+/** Do not reuse an actual cycle/start layout until the finite pool is exhausted. */
+function freshCycle(W: number, H: number, previousVariant?: number) {
+  const key = `${W}x${H}`;
+  const history = runHistory.get(key) ?? { used: new Set<string>() };
+  runHistory.set(key, history);
+  const candidates = Array.from({ length: 16 * W * H }, (_, i) => i);
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
+  for (let pass = 0; pass < 2; pass++) {
+    for (const candidate of candidates) {
+      const variant = Math.floor(candidate / (W * H)), offset = candidate % (W * H);
+      if (variant === previousVariant) continue;
+      const cycle = buildCycle(W, H, variant, offset);
+      const signature = cycle.path.map((p) => p.y * W + p.x).join(",");
+      const head = cycle.path[0];
+      const headKey = `${head.x},${head.y}`;
+      if (headKey === history.head || history.used.has(signature)) continue;
+      history.used.add(signature); history.head = headKey;
+      return { ...cycle, variant };
+    }
+    history.used.clear();
+  }
+  throw new Error("No valid cycle start available");
+}
+
 export class Game {
   W: number; H: number; N: number;
   order: number[]; path: P[];
@@ -41,15 +71,20 @@ export class Game {
   eaten = 0; won = false; steps = 0;
   occ: Uint8Array;
   variant: number;
+  initialLength: number;
+  format: VideoFormat;
+  get progress() {
+    return this.format === "shorts" ? this.snake.length / this.N
+      : (this.snake.length - this.initialLength) / (this.N - this.initialLength);
+  }
 
-  constructor(W: number, H: number, previousVariant?: number, mode: Mode = "classic") {
+  constructor(W: number, H: number, previousVariant?: number, mode: Mode = "classic", format: VideoFormat = "long") {
     this.W = W; this.H = H; this.N = W * H; this.mode = mode;
-    const choices = Array.from({ length: 16 }, (_, i) => i).filter((i) => i !== previousVariant);
-    this.variant = choices[Math.floor(Math.random() * choices.length)];
-    const c = buildCycle(W, H, this.variant, Math.floor(Math.random() * this.N)); this.order = c.order; this.path = c.path;
+    this.format = format;
+    const c = freshCycle(W, H, previousVariant); this.variant = c.variant; this.order = c.order; this.path = c.path;
     this.occ = new Uint8Array(this.N);
-    const initialLength = Math.floor(this.N / 2);
-    for (let i = initialLength - 1; i >= 0; i--) this.snake.push(this.path[i]);
+    this.initialLength = format === "shorts" ? Math.floor(this.N / 2) : Math.min(3, this.N - 1);
+    for (let i = 0; i < this.initialLength; i++) this.snake.push(this.path[(this.N - i) % this.N]);
     this.snake.forEach((p) => (this.occ[this.idx(p)] = 1));
     this.spawnWave();
   }
