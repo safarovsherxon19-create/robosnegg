@@ -1,4 +1,7 @@
 # Tasks
+- [ ] Restore original canvas heading and counters instead of the dark banner.
+- [ ] Start Shorts at 50%, Long with a small snake at 0% progress; correct upload descriptions.
+- [ ] Vary starting locations and cycle trajectories, test safe completion and verify recordings.
 - [x] Start at 50% with safe full-board completion and preserve digestion visuals.
 - [x] Add minimal dynamic recorded banners and strengthen ASMR.
 - [x] Schedule two Shorts and two 32×18 Longs with varied Shorts colors and metadata.
