@@ -46,6 +46,15 @@ class DailyVideoRules(unittest.TestCase):
             variants.add(cfg["banner"])
         self.assertEqual(len(variants), 4)
 
+    def test_only_shorts_describe_a_half_full_start(self):
+        for name in VIDEOS:
+            cfg = video_config(name, self.day)
+            title, desc, _ = video_metadata(name, cfg, self.day)
+            self.assertEqual("half-full" in desc, cfg["format"] == "shorts")
+            if cfg["format"] == "long":
+                self.assertNotIn("50%", title)
+                self.assertIn("small snake", desc)
+
 
 if __name__ == "__main__":
     unittest.main()

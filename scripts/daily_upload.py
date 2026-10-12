@@ -48,15 +48,17 @@ def video_metadata(name: str, cfg: dict, day: datetime.date) -> tuple[str, str, 
     index = list(VIDEOS).index(name)
     rng = random.Random(f"{day.isoformat()}:{name}")
     mode = "2x Classic" if cfg["mode"] == "double" else "Classic"
-    hook = TITLE_HOOKS[(day.toordinal() * 4 + index) % len(TITLE_HOOKS)]
+    hooks = TITLE_HOOKS if cfg["format"] == "shorts" else [h for h in TITLE_HOOKS if "50%" not in h and "Half" not in h]
+    hook = hooks[(day.toordinal() * 4 + index) % len(hooks)]
     sticker = STICKERS[(day.toordinal() + index) % len(STICKERS)]
     suffix = " #Shorts" if cfg["format"] == "shorts" else ""
     title = f"{hook} {sticker} | {mode}{suffix}"
     tags = rng.sample(HASHTAGS, 5)
     if suffix:
         tags.append("#Shorts")
+    beginning = "a half-full" if cfg["format"] == "shorts" else "a small snake on a"
     desc = (f"{hook} {sticker}\n\n"
-            f"I started with a half-full {cfg['w']}x{cfg['h']} board in {mode} and filled every last cell.\n"
+            f"I started with {beginning} {cfg['w']}x{cfg['h']} board in {mode} and filled every last cell.\n"
             "Crisp fruit bites, soft turns, and a perfect finish. 🎧\n\n"
             f"{rng.choice(['Which bite was the most satisfying?', 'Can you spot the last empty cell?', 'Which color should I try next?'])}\n"
             "Subscribe for daily satisfying Snake runs! 🐍\n\n"
