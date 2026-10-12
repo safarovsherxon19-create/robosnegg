@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        video: [short-classic-1, short-classic-2, short-double-1, short-double-2, long-classic-16, long-double-20]
+        video: [short-classic-1, short-double-1, long-classic-32, long-double-32]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

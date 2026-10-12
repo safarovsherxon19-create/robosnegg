@@ -48,7 +48,8 @@ export class Game {
     this.variant = choices[Math.floor(Math.random() * choices.length)];
     const c = buildCycle(W, H, this.variant, Math.floor(Math.random() * this.N)); this.order = c.order; this.path = c.path;
     this.occ = new Uint8Array(this.N);
-    for (let i = 2; i >= 0; i--) this.snake.push(this.path[i]);
+    const initialLength = Math.floor(this.N / 2);
+    for (let i = initialLength - 1; i >= 0; i--) this.snake.push(this.path[i]);
     this.snake.forEach((p) => (this.occ[this.idx(p)] = 1));
     this.spawnWave();
   }

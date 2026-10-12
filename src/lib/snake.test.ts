@@ -5,6 +5,12 @@ const sizes: [number, number][] = [[10, 10], [16, 16], [20, 20], [30, 30], [16, 
 const edgeSizes: [number, number][] = [[6, 5], [5, 6], [2, 8]];
 
 describe("randomized safe robot", () => {
+  it("starts both video modes at exactly 50% on 10x10 and 32x18 boards", () => {
+    for (const mode of ["classic", "double"] as const) {
+      expect(new Game(10, 10, undefined, mode).snake.length).toBe(50);
+      expect(new Game(32, 18, undefined, mode).snake.length).toBe(288);
+    }
+  });
   it("keeps every transformed cycle adjacent, closed and complete", () => {
     for (const [w, h] of [...sizes, ...edgeSizes]) {
       for (let variant = 0; variant < 16; variant++) {
@@ -50,7 +56,7 @@ describe("randomized safe robot", () => {
         }
         expect(game.won).toBe(true);
         expect(game.snake.length).toBe(w * h);
-        expect(game.eaten).toBe(w * h - 3);
+        expect(game.eaten).toBe(w * h - Math.floor(w * h / 2));
       }
     }
   }, 60000);

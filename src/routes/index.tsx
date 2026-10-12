@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Game, type Mode } from "@/lib/snake";
 import { GameAudio } from "@/lib/audio";
 import { digestionPulse } from "@/lib/digestion";
+import { BANNER_HOOKS, bannerStage } from "@/lib/video-banner";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ChevronDown, Pause, Play, Square, RotateCcw } from "lucide-react";
@@ -12,10 +13,10 @@ import "@fontsource/noto-emoji/400.css";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Robo Snake — Unbeatable Snake Game & Video Recording" },
-      { name: "description", content: "Watch an expert robot fill the Snake board and record high-quality videos for YouTube and Shorts." },
-      { property: "og:title", content: "Robo Snake — Unbeatable Snake Game" },
-      { property: "og:description", content: "An unbeatable robot fills the board. Customize colors and heads, then record in landscape or Shorts format." },
+      { title: "Snake — Perfect Runs & ASMR Video Recording" },
+      { name: "description", content: "Satisfying Snake runs from half-full to perfect, with colorful boards, bite sounds and YouTube video recording." },
+      { property: "og:title", content: "Snake — Perfect Runs & ASMR Video Recording" },
+      { property: "og:description", content: "Half-full to perfect: colorful Snake gameplay with satisfying bite sounds and minimal progress banners." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -67,6 +68,8 @@ function Index() {
   const paletteRef = useRef({});
   const winColors = useRef({ overlay: "", text: "" });
   const mouthCols = useRef({ mouth: "", tongue: "", teeth: "" });
+  const bannerColors = useRef({});
+  const bannerIndex = useRef(0);
   const eatAt = useRef(-1000);
   const stepFraction = useRef(0);
   const [autoRec, setAutoRec] = useState(true);
@@ -93,6 +96,7 @@ function Index() {
     const c = canvasRef.current;
     if (!c || (recRef.current && recRef.current.state !== "inactive")) return;
     const recordedFormat = format;
+    const recordedMode = mode;
     const stream = c.captureStream(60);
     const a = ensureAudio().dest.stream.getAudioTracks()[0];
     if (a) stream.addTrack(a.clone());
@@ -103,7 +107,7 @@ function Index() {
     r.ondataavailable = (e) => e.data.size && chunks.current.push(e.data);
     r.onstop = () => {
       const blob = new Blob(chunks.current, { type: mime || "video/webm" });
-      setVideo({ url: URL.createObjectURL(blob), ext: mime.includes("mp4") ? "mp4" : "webm", format: recordedFormat });
+      setVideo({ url: URL.createObjectURL(blob), ext: mime.includes("mp4") ? "mp4" : "webm", format: recordedFormat, mode: recordedMode });
       stream.getTracks().forEach((track) => track.stop());
       setRecording(false);
     };
@@ -145,12 +149,16 @@ function Index() {
     }
     setSizeError("");
     gameRef.current = new Game(s.w, s.h, gameRef.current?.variant, mode);
+    const requestedBanner = Number(new URLSearchParams(window.location.search).get("banner"));
+    bannerIndex.current = new URLSearchParams(window.location.search).has("banner") && Number.isInteger(requestedBanner)
+      ? ((requestedBanner % BANNER_HOOKS.length) + BANNER_HOOKS.length) % BANNER_HOOKS.length
+      : Math.floor(Math.random() * BANNER_HOOKS.length);
     stepFraction.current = 0;
     eatAt.current = -1000;
     const au = ensureAudio();
     au.stopMusic();
     if (music) au.startMusic();
-    setStats({ len: 3, total: s.w * s.h, eaten: 0 });
+    setStats({ len: gameRef.current.snake.length, total: s.w * s.h, eaten: 0 });
     winAt.current = 0;
     setPaused(false);
     setEnded(false);
@@ -196,6 +204,7 @@ function Index() {
     }
     winColors.current = { overlay: token("--snake-win-overlay"), text: token("--snake-win-text") };
     mouthCols.current = { mouth: token("--snake-mouth"), tongue: token("--snake-tongue"), teeth: token("--snake-teeth"), eye: token("--snake-eye"), pupil: token("--snake-pupil") };
+    bannerColors.current = Object.fromEntries(["bg", "text", "muted", "track", "accent"].map((key) => [key, token(`--snake-banner-${key}`)]));
   }, []);
 
   useEffect(() => {
@@ -243,18 +252,35 @@ function Index() {
     ctx.fillStyle = T.bg; ctx.fillRect(0, 0, W, H);
     const g = gameRef.current;
     const vertical = H > W;
-    const hud = vertical ? 260 : 120;
+    const hud = vertical ? 280 : 210;
     ctx.fillStyle = T.text; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = `800 ${vertical ? 72 : 56}px system-ui, "Noto Emoji", sans-serif`;
-    ctx.fillText("🐍 SNAKE", W / 2, hud * 0.4);
     if (!g) {
+      ctx.font = `800 ${vertical ? 72 : 56}px system-ui, "Noto Emoji", sans-serif`;
+      ctx.fillText("🐍 SNAKE", W / 2, hud * 0.4);
       ctx.font = "500 40px system-ui"; ctx.fillText("Press Start to begin", W / 2, H / 2); return;
     }
-    const pct = ((g.snake.length / g.N) * 100).toFixed(1);
-    ctx.font = `600 ${vertical ? 44 : 34}px system-ui, sans-serif`;
-    ctx.globalAlpha = 0.8;
-    ctx.fillText(`Length ${g.snake.length}/${g.N}  •  ${pct}%  •  Fruit ${g.eaten}`, W / 2, hud * 0.8);
-    ctx.globalAlpha = 1;
+    // Minimal banner sits above the board, in the same recorded canvas.
+    const B = bannerColors.current;
+    const bx = vertical ? 64 : 180, by = 28, bannerW = W - bx * 2, bannerH = hud - 40;
+    const inset = vertical ? 34 : 40;
+    ctx.fillStyle = B.bg;
+    ctx.beginPath(); ctx.roundRect(bx, by, bannerW, bannerH, 8); ctx.fill();
+    ctx.textAlign = "left";
+    ctx.fillStyle = B.muted;
+    ctx.font = `600 ${vertical ? 25 : 22}px system-ui`;
+    ctx.fillText(`${mode === "double" ? "2x CLASSIC" : "CLASSIC"}  /  ${bannerStage(g.snake.length, g.N)}`, bx + inset, by + 32);
+    ctx.fillStyle = B.text;
+    ctx.font = `700 ${vertical ? 44 : 40}px system-ui`;
+    ctx.fillText(BANNER_HOOKS[bannerIndex.current], bx + inset, by + (vertical ? 91 : 74), bannerW - inset * 2);
+    ctx.fillStyle = B.muted;
+    ctx.font = `500 ${vertical ? 28 : 24}px system-ui`;
+    ctx.fillText(`${g.snake.length}/${g.N} CELLS`, bx + inset, by + bannerH - 49);
+    ctx.textAlign = "right"; ctx.fillStyle = B.accent;
+    ctx.fillText(`${Math.floor(g.snake.length / g.N * 100)}%`, bx + bannerW - inset, by + bannerH - 49);
+    const trackY = by + bannerH - 24, trackW = bannerW - inset * 2;
+    ctx.fillStyle = B.track; ctx.fillRect(bx + inset, trackY, trackW, 5);
+    ctx.fillStyle = B.accent; ctx.fillRect(bx + inset, trackY, trackW * g.snake.length / g.N, 5);
+    ctx.textAlign = "center";
     const pad = 40;
     const cell = Math.floor(Math.min((W - pad * 2) / g.W, (H - hud - pad * 2) / g.H));
     const bw = cell * g.W, bh = cell * g.H;
@@ -415,7 +441,7 @@ function Index() {
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">Mode
           <select className={sel} value={mode} onChange={(e) => setMode(e.target.value as Mode)} disabled={running && !gameRef.current?.won}>
             <option value="classic">Classic (1 fruit)</option>
-            <option value="double">2x Classic (1, 2, 4, 8…)</option>
+            <option value="double">2x Classic (3 fruits)</option>
           </select>
         </label>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={music} onChange={(e) => { setMusic(e.target.checked); if (!e.target.checked) audioRef.current?.stopMusic(); else if (running && !paused) ensureAudio().startMusic(); }} className="accent-primary" />Music</label>
