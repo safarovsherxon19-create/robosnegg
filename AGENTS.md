@@ -12,3 +12,6 @@
 - Randomize robot runs by transforming and rotating a Hamiltonian cycle, excluding the preceding variant; preserve cycle-order shortcut checks so full-board play remains collision-free.
 - Define canvas palettes in global CSS tokens and read them in the browser; recording and on-screen rendering must share the same selected palette and head.
 - Model digestion pulses in a browser-safe pure helper using fractional game steps and body-relative positions; this keeps swallowing smooth, pause-aware, and identical in recordings without changing collision logic.
+- Initialize half-filled games with a contiguous reversed slice of the randomized Hamiltonian path to retain collision-free cycle ordering.
+- Derive dynamic banner stages in a browser-safe helper and draw banners above the board on the recording canvas so preview and exported video match.
+- Route the shared ASMR mix through one peak limiter before splitting to speakers and recording to preserve identical, unclipped audio.

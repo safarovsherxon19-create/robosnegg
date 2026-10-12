@@ -1,5 +1,6 @@
 import biteAsset from "@/assets/snake-eat.mp3.asset.json";
 import turnAsset from "@/assets/snake-turn.mp3.asset.json";
+export const ASMR_MIX = { bite: 1.3, turn: 0.72, music: 0.09 };
 // Procedural game audio (Web Audio). Everything routes to speakers AND a
 // MediaStream so recordings include the same sound the player hears.
 export class GameAudio {
@@ -16,10 +17,18 @@ export class GameAudio {
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.8;
     this.dest = this.ctx.createMediaStreamDestination();
-    this.master.connect(this.ctx.destination);
-    this.master.connect(this.dest);
+    // One gentle peak limiter feeds both speakers and recordings identically.
+    const limiter = this.ctx.createDynamicsCompressor();
+    limiter.threshold.value = -6;
+    limiter.knee.value = 6;
+    limiter.ratio.value = 8;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.12;
+    this.master.connect(limiter);
+    limiter.connect(this.ctx.destination);
+    limiter.connect(this.dest);
     this.musicGain = this.ctx.createGain();
-    this.musicGain.gain.value = 0.22;
+    this.musicGain.gain.value = ASMR_MIX.music;
     this.musicGain.connect(this.master);
   }
 
@@ -53,7 +62,7 @@ export class GameAudio {
     this.lastTurn = this.ctx.currentTime;
     const src = this.ctx.createBufferSource(); src.buffer = this.turnBuf;
     src.playbackRate.value = 0.95 + Math.random() * 0.1;
-    const g = this.ctx.createGain(); g.gain.value = 0.55;
+    const g = this.ctx.createGain(); g.gain.value = ASMR_MIX.turn;
     src.connect(g); g.connect(this.master); src.start();
   }
 
@@ -64,7 +73,7 @@ export class GameAudio {
       const t0 = this.ctx.currentTime;
       const src = this.ctx.createBufferSource(); src.buffer = this.biteBuf;
       src.playbackRate.value = 0.96 + Math.random() * 0.1; // never identical
-      const g = this.ctx.createGain(); g.gain.value = 1.0;
+      const g = this.ctx.createGain(); g.gain.value = ASMR_MIX.bite;
       src.connect(g); g.connect(this.master); src.start(t0);
       return;
     }

@@ -158,6 +158,9 @@
   --snake-gold-bg: #191913; --snake-gold-grid: #2a291e; --snake-gold-a: 255,225,105; --snake-gold-b: 225,145,40; --snake-gold-text: #fff8d9;
   --snake-rainbow-bg: #14151b; --snake-rainbow-grid: #22242d; --snake-rainbow-a: 255,100,140; --snake-rainbow-b: 75,215,255; --snake-rainbow-text: #f8f8ff;
   --snake-win-overlay: #0000008c; --snake-win-text: #ffffff;
+  --snake-banner-bg: #101214; --snake-banner-text: #f5f7f8;
+  --snake-banner-muted: #afb8bc; --snake-banner-track: #343b40;
+  --snake-banner-accent: #a9ef78;
   --snake-mouth: #4a0d0d; --snake-tongue: #e35d6a; --snake-teeth: #f8fafc;
 }
 .snake-swatch { background: linear-gradient(135deg, rgb(var(--swatch-a)), rgb(var(--swatch-b))); }
