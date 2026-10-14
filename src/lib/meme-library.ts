@@ -36,7 +36,7 @@ export async function uploadMeme(file: File, onProgress: (progress: number) => v
   const extension = file.name.split(".").pop()?.replace(/[^a-zA-Z0-9]/g, "") || "video";
   const path = `${user.id}/${id}.${extension}`;
   // Browser-only: tus-js-client pulls Node file APIs that crash the live server.
-  const { Upload } = await import("tus-js-client/lib.esm/browser/index.js" as string).catch(() => import("tus-js-client"));
+  const { Upload } = await import("tus-js-client");
   await new Promise<void>((resolve, reject) => {
     const upload = new Upload(file, {
       endpoint: `${import.meta.env['VITE_SUPABASE_URL']}/storage/v1/upload/resumable`,
