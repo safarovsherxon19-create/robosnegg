@@ -2,21 +2,12 @@ import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Upload } from "tus-js-client";
 import type { MemeClip } from "./memes";
+import { listMemeClips } from "./meme-library.functions";
 
 export const memeLibraryOptions = queryOptions({
   queryKey: ["meme-library"],
   staleTime: 60_000,
-  queryFn: async (): Promise<MemeClip[]> => {
-    const { data, error } = await supabase.from("meme_clips").select("id,name,path").order("created_at");
-    if (error) throw error;
-    if (!data.length) return [];
-    const signed = await supabase.storage.from("meme-clips").createSignedUrls(data.map(c => c.path), 86400);
-    if (signed.error) throw signed.error;
-    return data.flatMap(c => {
-      const url = signed.data.find(s => s.path === c.path)?.signedUrl;
-      return url ? [{ id: c.id, name: c.name, caption: "", path: c.path, url }] : [];
-    });
-  },
+  queryFn: () => listMemeClips(),
 });
 
 export const MAX_CLIP_BYTES = 5 * 1024 ** 3;
@@ -39,8 +30,8 @@ export async function uploadMeme(file: File, onProgress: (progress: number) => v
   const path = `${user.id}/${id}.${extension}`;
   await new Promise<void>((resolve, reject) => {
     const upload = new Upload(file, {
-      endpoint: `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/upload/resumable`,
-      headers: { authorization: `Bearer ${session.access_token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+      endpoint: `${import.meta.env['VITE_SUPABASE_URL']}/storage/v1/upload/resumable`,
+      headers: { authorization: `Bearer ${session.access_token}`, apikey: import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] },
       metadata: { bucketName: "meme-clips", objectName: path, contentType: file.type, cacheControl: "3600" },
       chunkSize: 6 * 1024 * 1024,
       retryDelays: [0, 1000, 3000, 5000, 10000],

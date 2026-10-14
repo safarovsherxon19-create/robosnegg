@@ -37,7 +37,7 @@ it("uses only three bottom positions for Shorts", () => {
   }
 });
 it("keeps all four Long meme slots outside the board", () => {
-  for (const [columns, rows] of [[20, 20], [32, 18]]) {
+  for (const [columns, rows] of [[20, 20], [32, 18]] as const) {
     const board = gameLayout(1920, 1080, columns, rows, true);
     expect([0, .3, .6, .99].map(r => memeSlot("long", -1, () => r))).toEqual([0, 1, 2, 3]);
     for (const slot of [0, 1, 2, 3]) {
