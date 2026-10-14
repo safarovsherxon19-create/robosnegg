@@ -3,10 +3,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Game, type Mode } from "@/lib/snake";
 import { GameAudio } from "@/lib/audio";
+import { MEME_CLIPS, MemeBag, MemePlayer, nextMemeTime, type MemeClip } from "@/lib/memes";
 import { digestionPulse } from "@/lib/digestion";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronDown, Pause, Play, Square, RotateCcw } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { ChevronDown, Pause, Play, Square, RotateCcw, Clapperboard, Plus } from "lucide-react";
 import "@fontsource/noto-emoji/400.css";
 
 export const Route = createFileRoute("/")({
@@ -64,6 +66,16 @@ function Index() {
   const [speed, setSpeed] = useState(30);
   const [speedText, setSpeedText] = useState("30");
   const [headStyle, setHeadStyle] = useState("snake");
+  const [withMems, setWithMems] = useState(false);
+  const [memeOpen, setMemeOpen] = useState(false);
+  const [memeClips, setMemeClips] = useState<MemeClip[]>(MEME_CLIPS);
+  const [memeError, setMemeError] = useState("");
+  const memeUpload = useRef<HTMLInputElement>(null);
+  const memePlayer = useRef<MemePlayer | null>(null);
+  const memeBag = useRef(new MemeBag());
+  const memeClock = useRef(0);
+  const memeNext = useRef(0.15);
+  const customMemeUrls = useRef<string[]>([]);
   const paletteRef = useRef({});
   const winColors = useRef({ overlay: "", text: "" });
   const mouthCols = useRef({ mouth: "", tongue: "", teeth: "" });
@@ -85,9 +97,27 @@ function Index() {
   const [recording, setRecording] = useState(false);
   const [video, setVideo] = useState<{ url: string; ext: string; format: keyof typeof FORMATS } | null>(null);
   const [stats, setStats] = useState({ len: 3, total: 400, eaten: 0 });
-  const cfg = useRef({ speed, theme, format, headStyle, paused, ended });
-  cfg.current = { speed, theme, format, headStyle, paused, ended };
+  const cfg = useRef({ speed, theme, format, headStyle, paused, ended, withMems, memeClips });
+  cfg.current = { speed, theme, format, headStyle, paused, ended, withMems, memeClips };
   const winAt = useRef(0);
+  const prepareMems = () => {
+    const audio = ensureAudio();
+    if (!memePlayer.current) memePlayer.current = new MemePlayer(audio.ctx, audio.master);
+    memePlayer.current.prepare(cfg.current.memeClips);
+    return memePlayer.current;
+  };
+  const previewMeme = (clip: MemeClip) => {
+    setWithMems(true);
+    if (!running) start();
+    prepareMems().play(clip);
+    memeNext.current = nextMemeTime(memeClock.current);
+    setMemeOpen(false);
+  };
+
+  useEffect(() => () => {
+    memePlayer.current?.dispose();
+    customMemeUrls.current.forEach((url) => URL.revokeObjectURL(url));
+  }, []);
 
   const startRec = () => {
     const c = canvasRef.current;
@@ -124,6 +154,7 @@ function Index() {
     if (paused && recorder?.state === "paused") recorder.resume();
     if (!paused && recorder?.state === "recording") recorder.pause();
     if (paused && music) audioRef.current?.startMusic(); else audioRef.current?.stopMusic();
+    if (paused) memePlayer.current?.resume(); else memePlayer.current?.pause();
     setPaused(!paused);
   };
   const endGame = () => {
@@ -133,6 +164,7 @@ function Index() {
     setPaused(false);
     setEnded(true);
     audioRef.current?.stopMusic();
+    memePlayer.current?.clear();
     stopRec();
   };
 
@@ -149,6 +181,10 @@ function Index() {
     stepFraction.current = 0;
     eatAt.current = -1000;
     const au = ensureAudio();
+    memePlayer.current?.clear();
+    memeClock.current = 0;
+    memeNext.current = 0.15;
+    if (cfg.current.withMems) prepareMems();
     au.stopMusic();
     if (music) au.startMusic();
     setStats({ len: gameRef.current.snake.length, total: s.w * s.h, eaten: 0 });
@@ -212,6 +248,12 @@ function Index() {
       const g = gameRef.current;
       const dt = Math.min(0.1, (t - last) / 1000); last = t;
       if (g && running && !paused && !g.won) {
+        memeClock.current += dt;
+        if (cfg.current.withMems && memeClock.current >= memeNext.current && !memePlayer.current?.active) {
+          const clip = memeBag.current.next(cfg.current.memeClips);
+          if (clip) prepareMems().play(clip);
+          memeNext.current = nextMemeTime(memeClock.current);
+        }
         acc += dt * cfg.current.speed;
         let n = Math.floor(acc); acc -= n;
         stepFraction.current = acc;
@@ -224,7 +266,7 @@ function Index() {
       if (g?.won) {
         setRunning(false);
         setPaused(false);
-        if (!winAt.current) { winAt.current = t; audioRef.current?.stopMusic(); }
+        if (!winAt.current) { winAt.current = t; audioRef.current?.stopMusic(); memePlayer.current?.clear(); }
         else if (t - winAt.current > 3000 && recRef.current?.state === "recording") stopRec();
       }
       draw(t);
@@ -378,6 +420,26 @@ function Index() {
       ctx.font = "600 44px system-ui";
       ctx.fillText(`Board 100% filled • ${g.eaten} fruit • ${g.steps} steps`, W / 2, H / 2 + 60);
     }
+    const reaction = memePlayer.current?.active;
+    if (reaction && !cfg.current.ended && !g.won) {
+      if (reaction.video.ended) { memePlayer.current?.clear(); return; }
+      if (reaction.video.readyState < 2) return;
+      // Shorts: unused area below the board. Long: a compact corner overlay.
+      const freeBelow = H - (oy + bh);
+      const side = vertical ? Math.max(120, Math.min(300, W * 0.29, freeBelow - 90)) : Math.min(240, W * 0.18);
+      const y = vertical && freeBelow >= side + 76 ? oy + bh + (freeBelow - side - 58) / 2 : H - side - 88;
+      const x = vertical ? (W - side) / 2 : W - side - 44;
+      const age = reaction.video.currentTime;
+      const alpha = Math.min(1, age / 0.12, Math.max(0, (reaction.video.duration - age) / 0.18));
+      ctx.save(); ctx.globalAlpha = Number.isFinite(alpha) ? alpha : 1;
+      ctx.beginPath(); ctx.roundRect(x, y, side, side, 8); ctx.clip();
+      ctx.drawImage(reaction.video, x, y, side, side); ctx.restore();
+      ctx.save(); ctx.globalAlpha = Number.isFinite(alpha) ? alpha : 1;
+      ctx.fillStyle = T.text; ctx.textAlign = "center";
+      ctx.font = `800 ${vertical ? 31 : 27}px system-ui, sans-serif`;
+      ctx.fillText(reaction.clip.caption, vertical ? W / 2 : x + side / 2, y + side + 34, vertical ? W - 80 : side + 40);
+      ctx.restore();
+    }
   };
 
   const sel = "rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground";
@@ -435,6 +497,43 @@ function Index() {
       </header>
 
       <div className="flex flex-wrap justify-center gap-4 border-b border-border px-4 py-3">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="with-mems" className="text-xs text-muted-foreground">With mems</label>
+          <div className="flex h-10 items-center gap-3 rounded-lg border border-border px-3">
+            <Switch id="with-mems" checked={withMems} onCheckedChange={(on) => {
+              setWithMems(on);
+              if (!on) memePlayer.current?.clear();
+              else { prepareMems(); memeNext.current = memeClock.current + 0.15; }
+            }} />
+            <Popover open={memeOpen} onOpenChange={setMemeOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" aria-label="Choose memes" className="h-8 gap-2 px-1">
+                  <Clapperboard className="size-4" />{memeClips.length} clips<ChevronDown className="size-3" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent aria-label="Meme clips" className="w-80 max-w-[calc(100vw-2rem)] p-3">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-sm font-semibold">Meme clips</span>
+                  <Button variant="outline" size="sm" onClick={() => memeUpload.current?.click()}><Plus />Add clip</Button>
+                </div>
+                <div className="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto">
+                  {memeClips.map((clip) => <Button key={clip.id} variant="outline" aria-label={`Preview ${clip.name}`} className="h-auto flex-col items-stretch gap-1.5 p-1.5" onClick={() => previewMeme(clip)}>
+                    <video src={clip.url} muted preload="metadata" playsInline className="aspect-square w-full rounded-sm object-cover" />
+                    <span className="flex items-center justify-between gap-1 text-xs"><span className="truncate">{clip.name}</span><Play className="size-3 shrink-0" /></span>
+                  </Button>)}
+                </div>
+                {memeError && <span role="alert" className="text-xs text-destructive">{memeError}</span>}
+              </PopoverContent>
+            </Popover>
+          </div>
+          <input ref={memeUpload} type="file" accept="video/*" aria-label="Upload meme clip" className="hidden" onChange={(e) => {
+            const file = e.target.files?.[0]; if (!file) return;
+            if (!file.type.startsWith("video/")) { setMemeError("Choose a video clip."); return; }
+            const url = URL.createObjectURL(file); customMemeUrls.current.push(url);
+            setMemeClips((clips) => [...clips, { id: crypto.randomUUID(), name: file.name.replace(/\.[^.]+$/, ""), caption: "", url }]);
+            setMemeError(""); e.target.value = "";
+          }} />
+        </div>
         <div className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">Color</span>
           <Popover open={colorOpen} onOpenChange={setColorOpen}>
