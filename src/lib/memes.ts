@@ -1,9 +1,9 @@
-import wait from "@/assets/meme-wait.mp4.asset.json";
-import seven from "@/assets/meme-six-seven.mp4.asset.json";
-import shark from "@/assets/meme-shark.mp4.asset.json";
-import coffee from "@/assets/meme-coffee.mp4.asset.json";
-import bro from "@/assets/meme-bro.mp4.asset.json";
-import bite from "@/assets/meme-one-more.mp4.asset.json";
+import wait from "@/assets/meme-wait.webm.asset.json";
+import seven from "@/assets/meme-six-seven.webm.asset.json";
+import shark from "@/assets/meme-shark.webm.asset.json";
+import coffee from "@/assets/meme-coffee.webm.asset.json";
+import bro from "@/assets/meme-bro.webm.asset.json";
+import bite from "@/assets/meme-one-more.webm.asset.json";
 
 export type MemeClip = { id: string; name: string; caption: string; url: string };
 export const MEME_CLIPS: MemeClip[] = [
