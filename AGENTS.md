@@ -16,3 +16,4 @@
 - Draw the above-board heading and game counters directly on the recording canvas so preview and exported video match.
 - Route the shared ASMR mix through one peak limiter before splitting to speakers and recording to preserve identical, unclipped audio.
 - Compute daily upload configurations centrally in the Python runner with date-based palette rotation and banner variants so independent workflow jobs stay distinct.
+- Keep optional meme selection and browser video playback in a separate module; composite its frames onto the game canvas and route its audio through the shared limiter so exports match playback. Daily automation must remain meme-free unless explicitly enabled.
