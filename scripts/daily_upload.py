@@ -2,18 +2,16 @@
 
 Env: SITE_URL, VIDEO (job name), YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN, PRIVACY (optional)
 """
-import asyncio, datetime, json, os, random, sys
+import asyncio, time, datetime, json, os, random, sys
 from urllib.parse import urlencode
 from pathlib import Path
 import requests
 from playwright.async_api import async_playwright
 
-VIDEOS = {
-    "short-classic-1": dict(w=10, h=10, mode="classic", format="shorts"),
-    "short-double-1": dict(w=10, h=10, mode="double", format="shorts"),
-    "long-classic-32": dict(w=32, h=18, mode="classic", format="long"),
-    "long-double-32": dict(w=32, h=18, mode="double", format="long"),
-}
+# Six Shorts a day: odd slots Classic with memes, even slots 2x Classic without memes.
+VIDEOS = {f"short-{i}": dict(w=10, h=10, mode="classic" if i % 2 else "double", format="shorts")
+          for i in range(1, 7)}
+UPLOAD_GAP_MIN = 30  # each next Short goes live 30 minutes after the previous one
 # Only existing app palettes. Consecutive days change both Shorts colors.
 SHORT_PALETTES = ["candy", "ice", "lime", "rainbow", "ocean", "fire", "gold", "sunset", "neon", "google", "classic"]
 STICKERS = ["🐍✨", "🍎🔥", "🎯🐍", "🏆✨", "🍒🎮", "💯🐍", "🍉✨", "🎧🍎"]
@@ -33,9 +31,8 @@ def video_config(name: str, day: datetime.date) -> dict:
     cfg = {**VIDEOS[name], "speed": 15, "head": "snake", "theme": "neon", "mems": 1 if VIDEOS[name]["mode"] == "classic" else 0}
     index = list(VIDEOS).index(name)
     if cfg["format"] == "shorts":
-        offset = 0 if cfg["mode"] == "classic" else 5
-        cfg["theme"] = SHORT_PALETTES[(day.toordinal() + offset) % len(SHORT_PALETTES)]
-    cfg["banner"] = (day.toordinal() + index * 2) % 8
+        cfg["theme"] = SHORT_PALETTES[(day.toordinal() + index * 2) % len(SHORT_PALETTES)]
+    cfg["banner"] = (day.toordinal() + index) % 8
     return cfg
 
 
@@ -129,6 +126,11 @@ def main() -> None:
     out = Path(f"/tmp/{name}.webm")
     asyncio.run(record(os.environ["SITE_URL"], cfg, out))
     title, desc, tags = video_metadata(name, cfg, day)
+    start = datetime.datetime.combine(day, datetime.time(0, 0), datetime.timezone.utc)
+    target = start + datetime.timedelta(minutes=UPLOAD_GAP_MIN * list(VIDEOS).index(name))
+    wait = (target - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
+    if wait > 0:
+        time.sleep(wait)
     vid = upload(out, title, desc, tags, set_cover=cfg["format"] == "long")
     print(f"Uploaded {name}: https://youtu.be/{vid}")
 
