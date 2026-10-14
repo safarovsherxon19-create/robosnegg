@@ -1,10 +1,11 @@
 # Tasks
-- [ ] Restore current verified account clip management and verify uploaded clips appear and can be deleted.
+- [x] Restore current verified account clip management and verify uploaded clips appear and can be deleted.
 - [x] Replace generated memes with persistent owner-managed uploads and delete controls.
 - [x] Raise Shorts board; place sequential random memes below Shorts and beside Long with 1–2 second gaps.
 - [x] Enable uploaded memes for first daily Short and Long and create matching covers (YouTube API cannot select Shorts covers).
 - [x] Test placement, scheduling, size rules, recording controls and daily configuration.
-- [ ] Verify owner upload/delete and recorded uploaded-meme playback: blocked until owner signs in and supplies video clips.
+- [x] Verify authenticated owner upload/delete using a temporary video clip; remove the test clip after verification.
+- [ ] Verify recorded uploaded-meme playback with the user's clips: blocked until user supplies video clips.
 - [ ] Verify daily YouTube upload with memes: blocked until latest app is published, clips are supplied and channel accepts uploads.
 - [x] Add optional With mems control, varied sound-on video reactions and personal clip uploads without changing daily uploads.
 - [x] Verify meme playback, pause/end behavior and downloaded recording with sound.
