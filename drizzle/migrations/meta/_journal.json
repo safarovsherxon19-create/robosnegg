@@ -8,6 +8,13 @@
       "when": 1791987356899,
       "tag": "0000_shared_meme_library",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791987662399,
+      "tag": "0001_restrict_meme_helper_execution",
+      "breakpoints": true
     }
   ]
 }
