@@ -8,11 +8,11 @@ on:
 jobs:
   video:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 360
     strategy:
       fail-fast: false
       matrix:
-        video: [short-classic-1, short-double-1, long-classic-32, long-double-32]
+        video: [short-1, short-2, short-3, short-4, short-5, short-6]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
