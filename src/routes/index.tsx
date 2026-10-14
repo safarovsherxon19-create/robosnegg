@@ -3,15 +3,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Game, type Mode } from "@/lib/snake";
 import { GameAudio } from "@/lib/audio";
-import { MEME_CLIPS, MemeBag, MemePlayer, nextMemeTime, type MemeClip } from "@/lib/memes";
+import { MemeBag, MemePlayer, nextMemeTime, memeSlot, gameLayout, memeRect, type MemeClip } from "@/lib/memes";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { memeLibraryOptions } from "@/lib/meme-library";
+import { MemeLibrary } from "@/components/meme-library";
 import { digestionPulse } from "@/lib/digestion";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
-import { ChevronDown, Pause, Play, Square, RotateCcw, Clapperboard, Plus } from "lucide-react";
+import { ChevronDown, Pause, Play, Square, RotateCcw } from "lucide-react";
 import "@fontsource/noto-emoji/400.css";
 
 export const Route = createFileRoute("/")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(memeLibraryOptions),
   head: () => ({
     meta: [
       { title: "Snake — Perfect Runs & ASMR Video Recording" },
@@ -67,15 +70,14 @@ function Index() {
   const [speedText, setSpeedText] = useState("30");
   const [headStyle, setHeadStyle] = useState("snake");
   const [withMems, setWithMems] = useState(false);
-  const [memeOpen, setMemeOpen] = useState(false);
-  const [memeClips, setMemeClips] = useState<MemeClip[]>(MEME_CLIPS);
-  const [memeError, setMemeError] = useState("");
-  const memeUpload = useRef<HTMLInputElement>(null);
+  const { data: memeClips } = useSuspenseQuery(memeLibraryOptions);
   const memePlayer = useRef<MemePlayer | null>(null);
   const memeBag = useRef(new MemeBag());
   const memeClock = useRef(0);
   const memeNext = useRef(0.15);
-  const customMemeUrls = useRef<string[]>([]);
+  const memePosition = useRef(-1);
+  const coverRef = useRef<string | null>(null);
+  const [cover, setCover] = useState<string | null>(null);
   const paletteRef = useRef({});
   const winColors = useRef({ overlay: "", text: "" });
   const mouthCols = useRef({ mouth: "", tongue: "", teeth: "" });
@@ -102,26 +104,26 @@ function Index() {
   const winAt = useRef(0);
   const prepareMems = () => {
     const audio = ensureAudio();
-    if (!memePlayer.current) memePlayer.current = new MemePlayer(audio.ctx, audio.master);
+    if (!memePlayer.current) memePlayer.current = new MemePlayer(audio.ctx, audio.master, () => { memeNext.current = nextMemeTime(memeClock.current); });
     memePlayer.current.prepare(cfg.current.memeClips);
     return memePlayer.current;
   };
   const previewMeme = (clip: MemeClip) => {
     setWithMems(true);
     if (!running) start();
+    memePosition.current = memeSlot(cfg.current.format, memePosition.current);
     prepareMems().play(clip);
-    memeNext.current = nextMemeTime(memeClock.current);
-    setMemeOpen(false);
+    memeNext.current = Infinity;
   };
 
   useEffect(() => () => {
     memePlayer.current?.dispose();
-    customMemeUrls.current.forEach((url) => URL.revokeObjectURL(url));
   }, []);
 
   const startRec = () => {
     const c = canvasRef.current;
     if (!c || (recRef.current && recRef.current.state !== "inactive")) return;
+    coverRef.current = null; setCover(null);
     const recordedFormat = format;
     const recordedMode = mode;
     const stream = c.captureStream(60);
@@ -136,6 +138,7 @@ function Index() {
       const blob = new Blob(chunks.current, { type: mime || "video/webm" });
       setVideo({ url: URL.createObjectURL(blob), ext: mime.includes("mp4") ? "mp4" : "webm", format: recordedFormat, mode: recordedMode });
       stream.getTracks().forEach((track) => track.stop());
+      setCover(coverRef.current || c.toDataURL("image/jpeg", 0.9));
       setRecording(false);
     };
     r.start(1000);
@@ -211,6 +214,7 @@ function Index() {
     setSpeed(sp); setSpeedText(String(sp));
     const th = q.get("theme") || "google"; if (th in THEMES) setTheme(th as keyof typeof THEMES);
     const hd = q.get("head") || "snake"; if (HEADS.some((x) => x.id === hd)) setHeadStyle(hd);
+    setWithMems(q.get("mems") === "1");
     setAutoRec(true);
     setAutoGo(true);
   }, []);
@@ -251,8 +255,11 @@ function Index() {
         memeClock.current += dt;
         if (cfg.current.withMems && memeClock.current >= memeNext.current && !memePlayer.current?.active) {
           const clip = memeBag.current.next(cfg.current.memeClips);
-          if (clip) prepareMems().play(clip);
-          memeNext.current = nextMemeTime(memeClock.current);
+          if (clip) {
+            memePosition.current = memeSlot(cfg.current.format, memePosition.current);
+            prepareMems().play(clip);
+            memeNext.current = Infinity;
+          }
         }
         acc += dt * cfg.current.speed;
         let n = Math.floor(acc); acc -= n;
@@ -266,8 +273,8 @@ function Index() {
       if (g?.won) {
         setRunning(false);
         setPaused(false);
-        if (!winAt.current) { winAt.current = t; audioRef.current?.stopMusic(); memePlayer.current?.clear(); }
-        else if (t - winAt.current > 3000 && recRef.current?.state === "recording") stopRec();
+        if (!winAt.current) { winAt.current = t; audioRef.current?.stopMusic(); }
+        else if (t - winAt.current > 3000 && !memePlayer.current?.active && recRef.current?.state === "recording") stopRec();
       }
       draw(t);
       raf = requestAnimationFrame(loop);
@@ -298,10 +305,8 @@ function Index() {
     ctx.globalAlpha = 0.8;
     ctx.fillText(`Length ${g.snake.length}/${g.N}  •  ${pct}%  •  Fruit ${g.eaten}`, W / 2, hud * 0.8);
     ctx.globalAlpha = 1;
-    const pad = 40;
-    const cell = Math.floor(Math.min((W - pad * 2) / g.W, (H - hud - pad * 2) / g.H));
-    const bw = cell * g.W, bh = cell * g.H;
-    const ox = Math.floor((W - bw) / 2), oy = Math.floor(hud + (H - hud - bh) / 2);
+    const board = gameLayout(W, H, g.W, g.H, cfg.current.withMems);
+    const { cell, bw, bh, ox, oy } = board;
     ctx.fillStyle = T.board; ctx.fillRect(ox, oy, bw, bh);
     ctx.fillStyle = T.grid;
     for (let y = 0; y < g.H; y++) for (let x = 0; x < g.W; x++) if ((x + y) % 2 === 0) ctx.fillRect(ox + x * cell, oy + y * cell, cell, cell);
@@ -421,25 +426,17 @@ function Index() {
       ctx.fillText(`Board 100% filled • ${g.eaten} fruit • ${g.steps} steps`, W / 2, H / 2 + 60);
     }
     const reaction = memePlayer.current?.active;
-    if (reaction && !cfg.current.ended && !g.won) {
-      if (reaction.video.ended) { memePlayer.current?.clear(); return; }
-      if (reaction.video.readyState < 2) return;
-      // Shorts: unused area below the board. Long: a compact corner overlay.
-      const freeBelow = H - (oy + bh);
-      const side = vertical ? Math.max(120, Math.min(300, W * 0.29, freeBelow - 90)) : Math.min(240, W * 0.18);
-      const y = vertical && freeBelow >= side + 76 ? oy + bh + (freeBelow - side - 58) / 2 : H - side - 88;
-      const x = vertical ? (W - side) / 2 : W - side - 44;
-      const age = reaction.video.currentTime;
-      const alpha = Math.min(1, age / 0.12, Math.max(0, (reaction.video.duration - age) / 0.18));
-      ctx.save(); ctx.globalAlpha = Number.isFinite(alpha) ? alpha : 1;
-      ctx.beginPath(); ctx.roundRect(x, y, side, side, 8); ctx.clip();
-      ctx.drawImage(reaction.video, x, y, side, side); ctx.restore();
-      ctx.save(); ctx.globalAlpha = Number.isFinite(alpha) ? alpha : 1;
-      ctx.fillStyle = T.text; ctx.textAlign = "center";
-      ctx.font = `800 ${vertical ? 31 : 27}px system-ui, sans-serif`;
-      ctx.fillText(reaction.clip.caption, vertical ? W / 2 : x + side / 2, y + side + 34, vertical ? W - 80 : side + 40);
-      ctx.restore();
+    if (reaction && cfg.current.withMems && !cfg.current.ended && reaction.video.readyState >= 2) {
+      const rect = memeRect(W, H, board, Math.max(0, memePosition.current));
+      const ratio = reaction.video.videoWidth / Math.max(1, reaction.video.videoHeight);
+      const width = Math.min(rect.width, rect.height * ratio), height = width / ratio;
+      const x = rect.x + (rect.width - width) / 2, y = rect.y + (rect.height - height) / 2;
+      ctx.drawImage(reaction.video, x, y, width, height);
+      if (!coverRef.current && reaction.video.currentTime > 0.15 && recRef.current?.state === "recording") {
+        coverRef.current = c.toDataURL("image/jpeg", 0.9);
+      }
     }
+
   };
 
   const sel = "rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground";
@@ -497,43 +494,13 @@ function Index() {
       </header>
 
       <div className="flex flex-wrap justify-center gap-4 border-b border-border px-4 py-3">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="with-mems" className="text-xs text-muted-foreground">With mems</label>
-          <div className="flex h-10 items-center gap-3 rounded-lg border border-border px-3">
-            <Switch id="with-mems" checked={withMems} onCheckedChange={(on) => {
-              setWithMems(on);
-              if (!on) memePlayer.current?.clear();
-              else { prepareMems(); memeNext.current = memeClock.current + 0.15; }
-            }} />
-            <Popover open={memeOpen} onOpenChange={setMemeOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" aria-label="Choose memes" className="h-8 gap-2 px-1">
-                  <Clapperboard className="size-4" />{memeClips.length} clips<ChevronDown className="size-3" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent aria-label="Meme clips" className="w-80 max-w-[calc(100vw-2rem)] p-3">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-sm font-semibold">Meme clips</span>
-                  <Button variant="outline" size="sm" onClick={() => memeUpload.current?.click()}><Plus />Add clip</Button>
-                </div>
-                <div className="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto">
-                  {memeClips.map((clip) => <Button key={clip.id} variant="outline" aria-label={`Preview ${clip.name}`} className="h-auto flex-col items-stretch gap-1.5 p-1.5" onClick={() => previewMeme(clip)}>
-                    <video src={clip.url} muted preload="metadata" playsInline className="aspect-square w-full rounded-sm object-cover" />
-                    <span className="flex items-center justify-between gap-1 text-xs"><span className="truncate">{clip.name}</span><Play className="size-3 shrink-0" /></span>
-                  </Button>)}
-                </div>
-                {memeError && <span role="alert" className="text-xs text-destructive">{memeError}</span>}
-              </PopoverContent>
-            </Popover>
-          </div>
-          <input ref={memeUpload} type="file" accept="video/*" aria-label="Upload meme clip" className="hidden" onChange={(e) => {
-            const file = e.target.files?.[0]; if (!file) return;
-            if (!file.type.startsWith("video/")) { setMemeError("Choose a video clip."); return; }
-            const url = URL.createObjectURL(file); customMemeUrls.current.push(url);
-            setMemeClips((clips) => [...clips, { id: crypto.randomUUID(), name: file.name.replace(/\.[^.]+$/, ""), caption: "", url }]);
-            setMemeError(""); e.target.value = "";
+        <MemeLibrary clips={memeClips} enabled={withMems} onPreview={previewMeme}
+          onDelete={(id) => { if (memePlayer.current?.active?.clip.id === id) { memePlayer.current.clear(); memeNext.current = nextMemeTime(memeClock.current); } }}
+          onEnabled={(on) => {
+            setWithMems(on);
+            if (!on) memePlayer.current?.clear();
+            else { prepareMems(); memeNext.current = memeClock.current + 0.15; }
           }} />
-        </div>
         <div className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">Color</span>
           <Popover open={colorOpen} onOpenChange={setColorOpen}>
@@ -593,6 +560,7 @@ function Index() {
             ⬇ Download video ({FORMATS[video.format].label})
           </a></Button>
         )}
+        {cover && <Button asChild variant="outline"><a href={cover} download={`snake-${format}-cover.jpg`}>Download cover</a></Button>}
       </footer>
     </main>
   );

@@ -55,6 +55,13 @@ class DailyVideoRules(unittest.TestCase):
                 self.assertNotIn("50%", title)
                 self.assertIn("small snake", desc)
 
+    def test_first_short_and_long_use_uploaded_memes_second_videos_do_not(self):
+        for name, enabled in (("short-classic-1", 1), ("long-classic-32", 1),
+                              ("short-double-1", 0), ("long-double-32", 0)):
+            cfg = video_config(name, self.day)
+            self.assertEqual(cfg["mems"], enabled)
+            self.assertEqual(parse_qs(recording_query(cfg))["mems"], [str(enabled)])
+
 
 if __name__ == "__main__":
     unittest.main()

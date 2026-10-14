@@ -30,7 +30,7 @@ HASHTAGS = ["#Snake", "#SnakeGame", "#Satisfying", "#ASMR", "#Gaming", "#Gamepla
 
 
 def video_config(name: str, day: datetime.date) -> dict:
-    cfg = {**VIDEOS[name], "speed": 15, "head": "snake", "theme": "neon"}
+    cfg = {**VIDEOS[name], "speed": 15, "head": "snake", "theme": "neon", "mems": 1 if VIDEOS[name]["mode"] == "classic" else 0}
     index = list(VIDEOS).index(name)
     if cfg["format"] == "shorts":
         offset = 0 if cfg["mode"] == "classic" else 5
@@ -41,7 +41,7 @@ def video_config(name: str, day: datetime.date) -> dict:
 
 def recording_query(cfg: dict) -> str:
     return urlencode({"auto": 1, **{k: cfg[k] for k in
-        ("w", "h", "mode", "format", "speed", "theme", "head", "banner")}})
+        ("w", "h", "mode", "format", "speed", "theme", "head", "banner", "mems")}})
 
 
 def video_metadata(name: str, cfg: dict, day: datetime.date) -> tuple[str, str, list[str]]:
@@ -75,20 +75,31 @@ async def record(site: str, cfg: dict, out: Path) -> None:
         ctx = await browser.new_context(viewport={"width": 1280, "height": 1800}, accept_downloads=True)
         page = await ctx.new_page()
         await page.goto(f"{site.rstrip('/')}/?{q}", wait_until="networkidle")
+        if cfg["mems"]:
+            # An empty library must not silently produce a supposedly meme-enabled video.
+            await page.get_by_role("button", name="Choose memes").wait_for(timeout=60000)
+            count = await page.get_by_role("button", name="Choose memes").inner_text()
+            if count.strip().startswith("0 clips"):
+                raise RuntimeError("Meme-enabled video needs uploaded clips. Add clips on the site before running this job.")
         link = page.get_by_role("link", name="Download video")
         await link.wait_for(timeout=4 * 60 * 60 * 1000)
         async with page.expect_download() as d:
             await link.click()
         await (await d.value).save_as(out)
+        cover = page.get_by_role("link", name="Download cover", exact=True)
+        await cover.wait_for(timeout=60000)
+        async with page.expect_download() as d:
+            await cover.click()
+        await (await d.value).save_as(out.with_suffix(".jpg"))
         await browser.close()
 
 
-def upload(path: Path, title: str, desc: str, tags: list[str]) -> str:
+def upload(path: Path, title: str, desc: str, tags: list[str], *, set_cover: bool = False) -> str:
     tok = requests.post("https://oauth2.googleapis.com/token", data={
         "client_id": os.environ["YT_CLIENT_ID"], "client_secret": os.environ["YT_CLIENT_SECRET"],
         "refresh_token": os.environ["YT_REFRESH_TOKEN"], "grant_type": "refresh_token"}, timeout=60)
     if not tok.ok:
-        sys.exit(f"Token error {tok.status_code}: {tok.text}")
+        sys.exit(f"Token error {tok.status_code}")
     auth = {"Authorization": f"Bearer {tok.json()['access_token']}"}
     meta = {"snippet": {"title": title[:100], "description": desc, "tags": tags, "categoryId": "20"},
             "status": {"privacyStatus": os.environ.get("PRIVACY", "public"), "selfDeclaredMadeForKids": False}}
@@ -101,7 +112,14 @@ def upload(path: Path, title: str, desc: str, tags: list[str]) -> str:
         r = requests.put(init.headers["Location"], headers={**auth, "Content-Type": "video/*"}, data=f, timeout=3600)
     if not r.ok:
         sys.exit(f"Upload error {r.status_code}: {r.text}")
-    return r.json()["id"]
+    video_id = r.json()["id"]
+    if set_cover and path.with_suffix(".jpg").exists():
+        with open(path.with_suffix(".jpg"), "rb") as cover:
+            thumbnail = requests.post("https://www.googleapis.com/upload/youtube/v3/thumbnails/set",
+                params={"videoId": video_id}, headers={**auth, "Content-Type": "image/jpeg"}, data=cover, timeout=60)
+        if not thumbnail.ok:
+            print(f"Video uploaded, but cover was not accepted ({thumbnail.status_code}). Check channel custom-thumbnail eligibility.", file=sys.stderr)
+    return video_id
 
 
 def main() -> None:
@@ -111,7 +129,7 @@ def main() -> None:
     out = Path(f"/tmp/{name}.webm")
     asyncio.run(record(os.environ["SITE_URL"], cfg, out))
     title, desc, tags = video_metadata(name, cfg, day)
-    vid = upload(out, title, desc, tags)
+    vid = upload(out, title, desc, tags, set_cover=cfg["format"] == "long")
     print(f"Uploaded {name}: https://youtu.be/{vid}")
 
 

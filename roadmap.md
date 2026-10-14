@@ -1,8 +1,10 @@
 # Tasks
-- [ ] Replace generated memes with persistent owner-managed uploads and delete controls.
-- [ ] Raise Shorts board; place sequential random memes below Shorts and beside Long with 1–2 second gaps.
-- [ ] Enable uploaded memes for first daily Short and Long and create matching covers.
-- [ ] Test uploads, deletion, playback, recording and daily configuration.
+- [x] Replace generated memes with persistent owner-managed uploads and delete controls.
+- [x] Raise Shorts board; place sequential random memes below Shorts and beside Long with 1–2 second gaps.
+- [x] Enable uploaded memes for first daily Short and Long and create matching covers (YouTube API cannot select Shorts covers).
+- [x] Test placement, scheduling, size rules, recording controls and daily configuration.
+- [ ] Verify owner upload/delete and recorded uploaded-meme playback: blocked until owner signs in and supplies video clips.
+- [ ] Verify daily YouTube upload with memes: blocked until latest app is published, clips are supplied and channel accepts uploads.
 - [x] Add optional With mems control, varied sound-on video reactions and personal clip uploads without changing daily uploads.
 - [x] Verify meme playback, pause/end behavior and downloaded recording with sound.
 - [x] Restore original canvas heading and counters instead of the dark banner.

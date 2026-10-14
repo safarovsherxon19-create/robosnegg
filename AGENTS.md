@@ -16,4 +16,8 @@
 - Draw the above-board heading and game counters directly on the recording canvas so preview and exported video match.
 - Route the shared ASMR mix through one peak limiter before splitting to speakers and recording to preserve identical, unclipped audio.
 - Compute daily upload configurations centrally in the Python runner with date-based palette rotation and banner variants so independent workflow jobs stay distinct.
-- Keep optional meme selection and browser video playback in a separate module; composite its frames onto the game canvas and route its audio through the shared limiter so exports match playback. Daily automation must remain meme-free unless explicitly enabled.
+- Keep meme playback and shared library management in separate modules; composite frames onto the game canvas and route audio through the shared limiter so exports match playback. Daily jobs explicitly pass their centrally configured meme flag.
+- Store the shared meme library in Cloud with verified owner role writes, public metadata reads and signed private-storage playback URLs; resumable uploads avoid large-file memory buffering.
+- Public library loading runs through an unauthenticated read-only server function with a publishable RLS-scoped client; signed playback URLs use the browser-reachable storage origin.
+- Schedule the next meme from the previous clip's ended/error event in game time; format-specific placement must never cover the board.
+- Capture covers directly from the recording canvas while an actually-used meme is visible; upload custom covers for Long only, as Shorts custom cover selection is not supported by the YouTube API.
