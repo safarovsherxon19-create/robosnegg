@@ -21,14 +21,17 @@ export const listMemeClips = createServerFn({ method: "GET" }).handler(async ():
   if (!data.length) return [];
   const signed = await client.storage.from("meme-clips").createSignedUrls(data.map(c => c.path), 86400);
   if (signed.error) throw signed.error;
-  const browserUrl = import.meta.env['VITE_SUPABASE_URL'];
+  // Server-only env (import.meta.env is not defined for the SSR handler).
+  const browserUrl = process.env['SUPABASE_URL'];
+  const publicBase = browserUrl ? new URL(browserUrl) : null;
   return data.flatMap(c => {
     const signedUrl = signed.data.find(s => s.path === c.path)?.signedUrl;
     if (!signedUrl) return [];
     const playback = new URL(signedUrl);
-    const publicBase = new URL(browserUrl);
-    playback.protocol = publicBase.protocol;
-    playback.host = publicBase.host;
+    if (publicBase) {
+      playback.protocol = publicBase.protocol;
+      playback.host = publicBase.host;
+    }
     return [{ id: c.id, name: c.name, caption: "", path: c.path, url: playback.href }];
   });
 });

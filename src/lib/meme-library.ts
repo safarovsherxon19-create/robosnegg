@@ -7,7 +7,15 @@ import { listMemeClips } from "./meme-library.functions";
 export const memeLibraryOptions = queryOptions({
   queryKey: ["meme-library"],
   staleTime: 60_000,
-  queryFn: () => listMemeClips(),
+  // A failed clip library must never crash the whole site; show an empty library instead.
+  queryFn: async () => {
+    try {
+      return await listMemeClips();
+    } catch (error) {
+      console.error("Clip library unavailable:", error);
+      return [];
+    }
+  },
 });
 
 export const MAX_CLIP_BYTES = 5 * 1024 ** 3;
