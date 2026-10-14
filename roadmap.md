@@ -1,6 +1,6 @@
 # Tasks
-- [ ] Add optional With mems control, varied sound-on video reactions and personal clip uploads without changing daily uploads.
-- [ ] Verify meme playback, pause/end behavior and downloaded recording with sound.
+- [x] Add optional With mems control, varied sound-on video reactions and personal clip uploads without changing daily uploads.
+- [x] Verify meme playback, pause/end behavior and downloaded recording with sound.
 - [x] Restore original canvas heading and counters instead of the dark banner.
 - [x] Start Shorts at 50%, Long with a small snake at 0% progress; correct upload descriptions.
 - [x] Vary starting locations and cycle trajectories, test safe completion and verify recordings.

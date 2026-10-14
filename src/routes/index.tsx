@@ -424,9 +424,9 @@ function Index() {
     if (reaction && !cfg.current.ended && !g.won) {
       if (reaction.video.ended) { memePlayer.current?.clear(); return; }
       if (reaction.video.readyState < 2) return;
-      const side = vertical ? Math.min(300, W * 0.29) : Math.min(240, W * 0.18);
       // Shorts: unused area below the board. Long: a compact corner overlay.
       const freeBelow = H - (oy + bh);
+      const side = vertical ? Math.max(120, Math.min(300, W * 0.29, freeBelow - 90)) : Math.min(240, W * 0.18);
       const y = vertical && freeBelow >= side + 76 ? oy + bh + (freeBelow - side - 58) / 2 : H - side - 88;
       const x = vertical ? (W - side) / 2 : W - side - 44;
       const age = reaction.video.currentTime;
