@@ -15,6 +15,13 @@
       "when": 1791987662399,
       "tag": "0001_restrict_meme_helper_execution",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791988247009,
+      "tag": "0002_fix_shared_meme_file_lookup",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,1 @@
+ALTER POLICY shared_clip_files ON storage.objects USING (bucket_id = 'meme-clips' AND EXISTS (SELECT 1 FROM public.meme_clips AS clip WHERE clip.path = storage.objects.name));

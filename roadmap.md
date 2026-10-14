@@ -1,4 +1,5 @@
 # Tasks
+- [ ] Restore current verified account clip management and verify uploaded clips appear and can be deleted.
 - [x] Replace generated memes with persistent owner-managed uploads and delete controls.
 - [x] Raise Shorts board; place sequential random memes below Shorts and beside Long with 1–2 second gaps.
 - [x] Enable uploaded memes for first daily Short and Long and create matching covers (YouTube API cannot select Shorts covers).
