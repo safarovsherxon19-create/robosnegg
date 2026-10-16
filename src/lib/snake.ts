@@ -30,6 +30,7 @@ export type Mode = "classic" | "double";
 export type Food = { p: P; fruit: string };
 
 export type VideoFormat = "shorts" | "long";
+export type Skill = "noob" | "pro" | "hacker";
 const runHistory = new Map<string, { used: Set<string>; head?: string }>();
 
 /** Do not reuse an actual cycle/start layout until the finite pool is exhausted. */
@@ -78,11 +79,14 @@ export class Game {
       : (this.snake.length - this.initialLength) / (this.N - this.initialLength);
   }
 
-  constructor(W: number, H: number, previousVariant?: number, mode: Mode = "classic", format: VideoFormat = "long") {
+  skill: Skill;
+  lost = false;
+  crashAt = 0.3 + Math.random() * 0.08;
+  constructor(W: number, H: number, previousVariant?: number, mode: Mode = "classic", format: VideoFormat = "long", skill: Skill = "pro") {
     this.W = W; this.H = H; this.N = W * H; this.mode = mode;
-    this.format = format;
+    this.format = format; this.skill = skill;
     const c = freshCycle(W, H, previousVariant); this.variant = c.variant; this.order = c.order; this.path = c.path;
-    this.occ = new Uint8Array(this.N);
+    this.occ = new Uint16Array(this.N);
     this.initialLength = format === "shorts" ? Math.floor(this.N / 2) : Math.min(3, this.N - 1);
     for (let i = 0; i < this.initialLength; i++) this.snake.push(this.path[(this.N - i) % this.N]);
     this.snake.forEach((p) => (this.occ[this.idx(p)] = 1));
@@ -111,7 +115,39 @@ export class Game {
     for (const f of this.foods) { const d = this.dist(ho, this.order[this.idx(f.p)]); if (d < bd) { bd = d; best = f; } }
     return best;
   }
+  inside(p: P) { return p.x >= 0 && p.y >= 0 && p.x < this.W && p.y < this.H; }
+  /** Noob: wobbly greedy chasing, then crashes into a wall or itself after 30%. */
+  noobNext(): P {
+    const head = this.snake[0], tail = this.snake[this.snake.length - 1];
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: head.x + dx, y: head.y + dy }));
+    const safe = dirs.filter((n) => this.inside(n) && (!this.occ[this.idx(n)] || (n.x === tail.x && n.y === tail.y)));
+    if (this.progress >= this.crashAt || !safe.length) {
+      const deadly = dirs.filter((n) => !safe.includes(n));
+      return deadly[Math.floor(Math.random() * deadly.length)] ?? dirs[0];
+    }
+    const food = this.target()?.p;
+    if (!food || Math.random() < 0.3) return safe[Math.floor(Math.random() * safe.length)];
+    return safe.reduce((a, b) => (Math.abs(b.x - food.x) + Math.abs(b.y - food.y) < Math.abs(a.x - food.x) + Math.abs(a.y - food.y) ? b : a));
+  }
+  /** Hacker: teleports beside fruit or walks over itself; never dies. */
+  hackerNext(): P {
+    const head = this.snake[0];
+    let food = this.target()?.p;
+    if (!food) return head;
+    if (!this.foods.some((f) => f.p === food)) food = this.foods[0].p;
+    const d = Math.abs(head.x - food.x) + Math.abs(head.y - food.y);
+    if (d > 1 && Math.random() < 0.55) {
+      const around = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: food.x + dx, y: food.y + dy })).filter((n) => this.inside(n));
+      return around[Math.floor(Math.random() * around.length)];
+    }
+    const moves = [];
+    if (food.x !== head.x) moves.push({ x: head.x + Math.sign(food.x - head.x), y: head.y });
+    if (food.y !== head.y) moves.push({ x: head.x, y: head.y + Math.sign(food.y - head.y) });
+    return moves[Math.floor(Math.random() * moves.length)] ?? food;
+  }
   next(): P {
+    if (this.skill === "noob") return this.noobNext();
+    if (this.skill === "hacker") return this.hackerNext();
     const head = this.snake[0], tail = this.snake[this.snake.length - 1];
     const ho = this.order[this.idx(head)];
     const cycleNext = this.path[(ho + 1) % this.N];
@@ -139,20 +175,26 @@ export class Game {
     }
     return best;
   }
+  get over() { return this.won || this.lost; }
   step(): boolean { // returns true if ate
-    if (this.won) return false;
+    if (this.won || this.lost) return false;
     const n = this.next();
     const h0 = this.snake[0], h1 = this.snake[1];
+    if (this.skill === "noob") {
+      const tail = this.snake[this.snake.length - 1];
+      const hitsBody = this.inside(n) && this.occ[this.idx(n)] && !(n.x === tail.x && n.y === tail.y && this.foodAt(n) < 0);
+      if (!this.inside(n) || hitsBody) { this.lost = true; this.steps++; return false; }
+    }
     this.turned = !!h1 && (n.x - h0.x !== h0.x - h1.x || n.y - h0.y !== h0.y - h1.y);
     this.steps++;
     const fi = this.foodAt(n);
     const ate = fi >= 0;
-    if (!ate) { const t = this.snake.pop(); if (t) this.occ[this.idx(t)] = 0; }
-    this.snake.unshift(n); this.occ[this.idx(n)] = 1;
+    if (!ate) { const t = this.snake.pop(); if (t) this.occ[this.idx(t)]--; }
+    this.snake.unshift(n); this.occ[this.idx(n)]++;
     if (ate) {
       this.foods.splice(fi, 1); this.eaten++;
       this.bulges.push(this.steps);
-      this.spawnWave();
+      if (this.snake.length < this.N) this.spawnWave();
     }
     this.bulges = this.bulges.filter((b) => this.steps - b < this.snake.length);
     if (this.snake.length >= this.N) { this.won = true; this.foods = []; }
