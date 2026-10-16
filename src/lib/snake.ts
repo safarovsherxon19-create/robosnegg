@@ -166,7 +166,8 @@ export class Game {
       .filter((n) => this.inside(n) && !this.occ[this.idx(n)] && this.foodAt(n) < 0);
     const exit = exits[Math.floor(Math.random() * exits.length)] ?? food;
     const dx = neck ? head.x - neck.x : 1, dy = neck ? head.y - neck.y : 0;
-    this.pendingPortal = { x: head.x + dx, y: head.y + dy };
+    const ahead = { x: head.x + dx, y: head.y + dy };
+    this.pendingPortal = this.inside(ahead) ? ahead : head;
     return exit;
   }
   next(): P {
@@ -221,9 +222,9 @@ export class Game {
       this.bulges.push(this.steps);
       if (this.snake.length < this.N) this.spawnWave();
     }
-    this.portals = this.portals.filter((p) => this.steps - p.at < this.snake.length + 6);
+    this.portals = this.portals.filter((p) => this.steps - p.at < 2);
     this.bulges = this.bulges.filter((b) => this.steps - b < this.snake.length);
-    if (this.snake.length >= this.N) { this.won = true; this.foods = []; }
+    if (this.snake.length >= this.N) { this.won = true; this.foods = []; this.portals = []; }
     return ate;
   }
 }

@@ -342,12 +342,12 @@ function Index() {
     // Swirling green portals: entry in front of the head, exit beside the fruit.
     for (const portal of g.portals) {
       const age = g.steps + stepFraction.current - portal.at;
-      const life = Math.min(1, (age + 1) / 1.5, (L + 6 - age) / 3);
+      const life = Math.min(1, (age + 1) / 0.4, (2 - age) / 1);
       if (life <= 0) continue;
       for (const at of [portal.a, portal.b]) {
         const cx = ox + at.x * cell + cell / 2, cy = oy + at.y * cell + cell / 2;
         ctx.save(); ctx.translate(cx, cy); ctx.globalAlpha = 0.9 * life;
-        const r = cell * 0.62 * life;
+        const r = cell * 0.46 * life;
         const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
         grad.addColorStop(0, portalCols.current.core); grad.addColorStop(0.7, portalCols.current.mid); grad.addColorStop(1, portalCols.current.rim);
         ctx.fillStyle = grad; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.8, r, 0, 0, Math.PI * 2); ctx.fill();
@@ -375,7 +375,7 @@ function Index() {
         const at = pulse.position + offset;
         if (at < 0 || at > L - 1) continue;
         const i = Math.floor(at), p = g.snake[i], q = g.snake[Math.min(i + 1, L - 1)];
-        if (!p || !q) continue;
+        if (!p || !q || Math.abs(p.x - q.x) + Math.abs(p.y - q.y) > 1) continue;
         const f = at - i, k = at / Math.max(1, L - 1);
         const col = T.a.map((v, j) => Math.round(v + (T.b[j] - v) * k));
         ctx.fillStyle = `rgb(${col.join(",")})`;
