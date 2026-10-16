@@ -81,6 +81,7 @@ export class Game {
 
   skill: Skill;
   lost = false;
+  teleported = false;
   crashAt = 0.3 + Math.random() * 0.08;
   constructor(W: number, H: number, previousVariant?: number, mode: Mode = "classic", format: VideoFormat = "long", skill: Skill = "pro") {
     this.W = W; this.H = H; this.N = W * H; this.mode = mode;
@@ -129,21 +130,44 @@ export class Game {
     if (!food || Math.random() < 0.3) return safe[Math.floor(Math.random() * safe.length)];
     return safe.reduce((a, b) => (Math.abs(b.x - food.x) + Math.abs(b.y - food.y) < Math.abs(a.x - food.x) + Math.abs(a.y - food.y) ? b : a));
   }
-  /** Hacker: teleports beside fruit or walks over itself; never dies. */
+  /** Hacker: plays normally by shortest free path; opens portals only when stuck. */
+  portals: { a: P; b: P; at: number }[] = [];
+  teleports = 0;
+  private pendingPortal: P | null = null;
   hackerNext(): P {
-    const head = this.snake[0];
-    let food = this.target()?.p;
-    if (!food) return head;
-    if (!this.foods.some((f) => f.p === food)) food = this.foods[0].p;
-    const d = Math.abs(head.x - food.x) + Math.abs(head.y - food.y);
-    if (d > 1 && Math.random() < 0.55) {
-      const around = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: food.x + dx, y: food.y + dy })).filter((n) => this.inside(n));
-      return around[Math.floor(Math.random() * around.length)];
+    const head = this.snake[0], neck = this.snake[1];
+    this.pendingPortal = null;
+    if (!this.foods.length) return head;
+    const goal = new Set(this.foods.map((f) => this.idx(f.p)));
+    const prev = new Int32Array(this.N).fill(-1);
+    const start = this.idx(head); prev[start] = start;
+    const queue = [start];
+    let found = -1;
+    for (let qi = 0; qi < queue.length && found < 0; qi++) {
+      const c = queue[qi], cx = c % this.W, cy = (c / this.W) | 0;
+      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]].sort(() => Math.random() - 0.5);
+      for (const [dx, dy] of dirs) {
+        const n = { x: cx + dx, y: cy + dy };
+        if (!this.inside(n)) continue;
+        const ni = this.idx(n);
+        if (prev[ni] >= 0 || this.occ[ni]) continue;
+        prev[ni] = c; queue.push(ni);
+        if (goal.has(ni)) { found = ni; break; }
+      }
     }
-    const moves = [];
-    if (food.x !== head.x) moves.push({ x: head.x + Math.sign(food.x - head.x), y: head.y });
-    if (food.y !== head.y) moves.push({ x: head.x, y: head.y + Math.sign(food.y - head.y) });
-    return moves[Math.floor(Math.random() * moves.length)] ?? food;
+    if (found >= 0) {
+      let c = found;
+      while (prev[c] !== start) c = prev[c];
+      return { x: c % this.W, y: (c / this.W) | 0 };
+    }
+    // Stuck: open a portal in front of the head and another beside a fruit.
+    const food = this.foods[Math.floor(Math.random() * this.foods.length)].p;
+    const exits = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: food.x + dx, y: food.y + dy }))
+      .filter((n) => this.inside(n) && !this.occ[this.idx(n)] && this.foodAt(n) < 0);
+    const exit = exits[Math.floor(Math.random() * exits.length)] ?? food;
+    const dx = neck ? head.x - neck.x : 1, dy = neck ? head.y - neck.y : 0;
+    this.pendingPortal = { x: head.x + dx, y: head.y + dy };
+    return exit;
   }
   next(): P {
     if (this.skill === "noob") return this.noobNext();
@@ -185,6 +209,7 @@ export class Game {
       const hitsBody = this.inside(n) && this.occ[this.idx(n)] && !(n.x === tail.x && n.y === tail.y && this.foodAt(n) < 0);
       if (!this.inside(n) || hitsBody) { this.lost = true; this.steps++; return false; }
     }
+    if (this.pendingPortal) { this.portals.push({ a: this.pendingPortal, b: n, at: this.steps + 1 }); this.teleports++; this.pendingPortal = null; this.teleported = true; } else this.teleported = false;
     this.turned = !!h1 && (n.x - h0.x !== h0.x - h1.x || n.y - h0.y !== h0.y - h1.y);
     this.steps++;
     const fi = this.foodAt(n);
@@ -196,6 +221,7 @@ export class Game {
       this.bulges.push(this.steps);
       if (this.snake.length < this.N) this.spawnWave();
     }
+    this.portals = this.portals.filter((p) => this.steps - p.at < this.snake.length + 6);
     this.bulges = this.bulges.filter((b) => this.steps - b < this.snake.length);
     if (this.snake.length >= this.N) { this.won = true; this.foods = []; }
     return ate;
