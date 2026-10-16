@@ -263,12 +263,13 @@ function Index() {
             memeNext.current = Infinity;
           }
         }
-        acc += dt * cfg.current.speed;
+        acc += dt * cfg.current.speed * (g.skill === "hacker" ? 0.55 : 1);
         let n = Math.floor(acc); acc -= n;
         stepFraction.current = acc;
-        let ate = false, turned = false;
-        while (n-- > 0 && !g.over) { ate = g.step() || ate; turned = g.turned || turned; }
-        if (turned && !ate) audioRef.current?.turn();
+        let ate = false, turned = false, warped = false;
+        while (n-- > 0 && !g.over) { ate = g.step() || ate; turned = g.turned || turned; warped = g.teleported || warped; }
+        if (warped) audioRef.current?.portal();
+        else if (turned && !ate) audioRef.current?.turn();
         if (ate) { audioRef.current?.eat(); eatAt.current = t; }
         setStats({ len: g.snake.length, total: g.N, eaten: g.eaten });
       }
@@ -305,7 +306,7 @@ function Index() {
     const pct = (g.progress * 100).toFixed(1);
     ctx.font = `600 ${vertical ? 44 : 34}px system-ui, sans-serif`;
     ctx.globalAlpha = 0.8;
-    ctx.fillText(`Length ${g.snake.length}/${g.N}  •  ${pct}%  •  Fruit ${g.eaten}`, W / 2, hud * 0.8);
+    ctx.fillText(`Length ${g.snake.length}/${g.N}  •  ${pct}%  •  Fruit ${g.eaten}${g.skill === "hacker" ? `  •  🌀 ${g.teleports}` : ""}`, W / 2, hud * 0.8);
     ctx.globalAlpha = 1;
     const board = gameLayout(W, H, g.W, g.H, cfg.current.withMems);
     const { cell, bw, bh, ox, oy } = board;
@@ -328,7 +329,7 @@ function Index() {
       // connect to previous segment
       const q = g.snake[i - 1];
       ctx.beginPath(); ctx.roundRect(x + gap, y + gap, cell - gap * 2, cell - gap * 2, cell * 0.3); ctx.fill();
-      if (q) {
+      if (q && Math.abs(p.x - q.x) + Math.abs(p.y - q.y) === 1) {
         const minx = Math.min(p.x, q.x), miny = Math.min(p.y, q.y);
         const dx = Math.abs(p.x - q.x), dy = Math.abs(p.y - q.y);
         ctx.fillRect(ox + minx * cell + gap + (dx ? cell / 2 : 0), oy + miny * cell + gap + (dy ? cell / 2 : 0), dx ? cell : cell - gap * 2, dy ? cell : cell - gap * 2);
@@ -336,6 +337,35 @@ function Index() {
     }
     // Continuous swelling moves relative to the body, including around bends.
     // One index per step would keep it fixed at the original bite's board cell.
+    // Swirling green portals: entry in front of the head, exit beside the fruit.
+    for (const portal of g.portals) {
+      const age = g.steps + stepFraction.current - portal.at;
+      const life = Math.min(1, (age + 1) / 1.5, (L + 6 - age) / 3);
+      if (life <= 0) continue;
+      for (const at of [portal.a, portal.b]) {
+        const cx = ox + at.x * cell + cell / 2, cy = oy + at.y * cell + cell / 2;
+        ctx.save(); ctx.translate(cx, cy); ctx.globalAlpha = 0.9 * life;
+        const r = cell * 0.62 * life;
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+        grad.addColorStop(0, portalCols.current.core); grad.addColorStop(0.7, portalCols.current.mid); grad.addColorStop(1, portalCols.current.rim);
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.8, r, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = portalCols.current.rim; ctx.lineWidth = Math.max(1.5, cell * 0.06);
+        for (let k = 0; k < 3; k++) {
+          ctx.beginPath();
+          for (let a = 0; a < 5; a += 0.25) {
+            const rr = r * 0.85 * (a / 5), ang = a * 1.6 + t / 180 + k * 2.1;
+            ctx.lineTo(Math.cos(ang) * rr * 0.8, Math.sin(ang) * rr);
+          }
+          ctx.stroke();
+        }
+        for (let k = 0; k < 6; k++) {
+          const ang = t / 300 + k * 1.05;
+          ctx.fillStyle = portalCols.current.spark;
+          ctx.beginPath(); ctx.arc(Math.cos(ang) * r * 0.85, Math.sin(ang) * r * 1.05, cell * 0.035, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
     for (const b of g.bulges) {
       const pulse = digestionPulse(g.steps + stepFraction.current - b, L);
       if (!pulse) continue;
