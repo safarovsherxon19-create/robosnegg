@@ -1,7 +1,7 @@
 // @ts-nocheck -- array index access is bounds-checked by game logic
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Game, type Mode } from "@/lib/snake";
+import { Game, type Mode, type Skill } from "@/lib/snake";
 import { GameAudio } from "@/lib/audio";
 import { MemeBag, MemePlayer, nextMemeTime, memeSlot, gameLayout, memeRect, type MemeClip } from "@/lib/memes";
 import { useSuspenseQuery } from "@tanstack/react-query";
