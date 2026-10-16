@@ -1,5 +1,7 @@
 import biteAsset from "@/assets/snake-eat.mp3.asset.json";
 import turnAsset from "@/assets/snake-turn.mp3.asset.json";
+import winAsset from "@/assets/true-sound-effect.mp3.asset.json";
+import loseAsset from "@/assets/wrong_5.mp3.asset.json";
 export const ASMR_MIX = { bite: 1.3, turn: 0.72, music: 0.09 };
 // Procedural game audio (Web Audio). Everything routes to speakers AND a
 // MediaStream so recordings include the same sound the player hears.
@@ -62,6 +64,15 @@ export class GameAudio {
       .then((b) => { this.biteBuf = b; }).catch(() => {});
     fetch(turnAsset.url).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a))
       .then((b) => { this.turnBuf = b; }).catch(() => {});
+  }
+  private endBufs: Record<string, AudioBuffer> = {};
+  /** Ending sting: "win" for pro/hacker completion, "lose" after a noob crash. */
+  finish(kind: "win" | "lose") {
+    const play = (b: AudioBuffer) => { const src = this.ctx.createBufferSource(); src.buffer = b; src.connect(this.master); src.start(); };
+    const cached = this.endBufs[kind];
+    if (cached) { play(cached); return; }
+    fetch((kind === "win" ? winAsset : loseAsset).url).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a))
+      .then((b) => { this.endBufs[kind] = b; play(b); }).catch(() => {});
   }
   private turnBuf: AudioBuffer | null = null;
   private lastTurn = 0;

@@ -80,3 +80,21 @@ describe("randomized safe robot", () => {
     }
   }, 60000);
 });
+describe("skills", () => {
+  it("noob crashes after reaching 30% and never wins", () => {
+    for (let r = 0; r < 20; r++) {
+      const g = new Game(10, 10, undefined, "classic", "long", "noob");
+      while (!g.over && g.steps < 100000) g.step();
+      expect(g.lost).toBe(true);
+      expect(g.won).toBe(false);
+    }
+  });
+  it("hacker always fills the board without dying", () => {
+    for (let r = 0; r < 10; r++) {
+      const g = new Game(10, 10, undefined, r % 2 ? "double" : "classic", "long", "hacker");
+      while (!g.over && g.steps < 100000) g.step();
+      expect(g.won).toBe(true);
+      expect(g.lost).toBe(false);
+    }
+  });
+});

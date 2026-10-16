@@ -1,7 +1,7 @@
 // @ts-nocheck -- array index access is bounds-checked by game logic
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Game, type Mode } from "@/lib/snake";
+import { Game, type Mode, type Skill } from "@/lib/snake";
 import { GameAudio } from "@/lib/audio";
 import { MemeBag, MemePlayer, nextMemeTime, memeSlot, gameLayout, memeRect, type MemeClip } from "@/lib/memes";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -96,6 +96,8 @@ function Index() {
   const [ended, setEnded] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
   const [headOpen, setHeadOpen] = useState(false);
+  const [skill, setSkill] = useState<Skill>("pro");
+  const [skillOpen, setSkillOpen] = useState(false);
   const [recording, setRecording] = useState(false);
   const [video, setVideo] = useState<{ url: string; ext: string; format: keyof typeof FORMATS } | null>(null);
   const [stats, setStats] = useState({ len: 3, total: 400, eaten: 0 });
@@ -180,7 +182,7 @@ function Index() {
       s = { label: "", w, h };
     }
     setSizeError("");
-    gameRef.current = new Game(s.w, s.h, gameRef.current?.variant, mode, format);
+    gameRef.current = new Game(s.w, s.h, gameRef.current?.variant, mode, format, skill);
     stepFraction.current = 0;
     eatAt.current = -1000;
     const au = ensureAudio();
@@ -251,7 +253,7 @@ function Index() {
     const loop = (t: number) => {
       const g = gameRef.current;
       const dt = Math.min(0.1, (t - last) / 1000); last = t;
-      if (g && running && !paused && !g.won) {
+      if (g && running && !paused && !g.over) {
         memeClock.current += dt;
         if (cfg.current.withMems && memeClock.current >= memeNext.current && !memePlayer.current?.active) {
           const clip = memeBag.current.next(cfg.current.memeClips);
@@ -265,15 +267,15 @@ function Index() {
         let n = Math.floor(acc); acc -= n;
         stepFraction.current = acc;
         let ate = false, turned = false;
-        while (n-- > 0 && !g.won) { ate = g.step() || ate; turned = g.turned || turned; }
+        while (n-- > 0 && !g.over) { ate = g.step() || ate; turned = g.turned || turned; }
         if (turned && !ate) audioRef.current?.turn();
         if (ate) { audioRef.current?.eat(); eatAt.current = t; }
         setStats({ len: g.snake.length, total: g.N, eaten: g.eaten });
       }
-      if (g?.won) {
+      if (g?.over) {
         setRunning(false);
         setPaused(false);
-        if (!winAt.current) { winAt.current = t; audioRef.current?.stopMusic(); }
+        if (!winAt.current) { winAt.current = t; audioRef.current?.stopMusic(); if (g.skill !== "pro" || !new URLSearchParams(location.search).has("auto")) audioRef.current?.finish(g.won ? "win" : "lose"); }
         else if (t - winAt.current > 3000 && !memePlayer.current?.active && recRef.current?.state === "recording") stopRec();
       }
       draw(t);
@@ -413,7 +415,14 @@ function Index() {
       }
       ctx.restore();
     }
-    if (cfg.current.ended && !g.won) {
+    if (g.lost) {
+      ctx.fillStyle = winColors.current.overlay; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = winColors.current.text; ctx.font = `900 ${vertical ? 110 : 100}px system-ui, "Noto Emoji"`;
+      ctx.fillText("💀 GAME OVER", W / 2, H / 2 - 40);
+      ctx.font = "600 44px system-ui";
+      ctx.fillText(`Noob crashed at ${(g.progress * 100).toFixed(1)}% • ${g.eaten} fruit`, W / 2, H / 2 + 60);
+    }
+    if (cfg.current.ended && !g.over) {
       ctx.fillStyle = winColors.current.overlay; ctx.fillRect(0, 0, W, H);
       ctx.fillStyle = winColors.current.text; ctx.font = `800 ${vertical ? 80 : 72}px system-ui`;
       ctx.fillText("GAME ENDED", W / 2, H / 2);
@@ -535,6 +544,20 @@ function Index() {
                 onClick={() => { setHeadStyle(h.id); setHeadOpen(false); }}>
                 <span className="snake-emoji text-xl">{h.icon}</span>{h.label}
               </Button>)}
+            </PopoverContent>
+          </Popover>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Skill</span>
+          <Popover open={skillOpen} onOpenChange={setSkillOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" aria-label="Choose skill" className="w-32 justify-between" disabled={running && !gameRef.current?.over}>
+                <span className="capitalize">{skill}</span><ChevronDown />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent aria-label="Skill options" className="grid w-40 gap-2 p-3">
+              {(["noob", "pro", "hacker"] as Skill[]).map((k) => <Button key={k} variant={skill === k ? "secondary" : "ghost"}
+                aria-pressed={skill === k} className="justify-start capitalize" onClick={() => { setSkill(k); setSkillOpen(false); }}>{k}</Button>)}
             </PopoverContent>
           </Popover>
         </div>
