@@ -95,6 +95,7 @@ describe("skills", () => {
       while (!g.over && g.steps < 100000) g.step();
       expect(g.won).toBe(true);
       expect(g.lost).toBe(false);
+      expect(new Set(g.snake.map((p) => `${p.x},${p.y}`)).size).toBe(100);
     }
   });
 });

@@ -74,6 +74,12 @@ export class GameAudio {
     fetch((kind === "win" ? winAsset : loseAsset).url).then((r) => r.arrayBuffer()).then((a) => this.ctx.decodeAudioData(a))
       .then((b) => { this.endBufs[kind] = b; play(b); }).catch(() => {});
   }
+  /** Portal whoosh: descending wobble plus a sparkly ping. */
+  portal() {
+    const t = this.ctx.currentTime;
+    this.tone(900, t, 0.35, "sine", 0.25, this.master, 120);
+    this.tone(1800, t + 0.12, 0.25, "triangle", 0.12, this.master, 2600);
+  }
   private turnBuf: AudioBuffer | null = null;
   private lastTurn = 0;
   /** Soft movement blip when the snake changes direction (throttled at high speed). */

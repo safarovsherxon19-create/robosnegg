@@ -80,6 +80,7 @@ function Index() {
   const [cover, setCover] = useState<string | null>(null);
   const paletteRef = useRef({});
   const winColors = useRef({ overlay: "", text: "" });
+  const portalCols = useRef({ core: "", mid: "", rim: "", spark: "" });
   const mouthCols = useRef({ mouth: "", tongue: "", teeth: "" });
   const eatAt = useRef(-1000);
   const stepFraction = useRef(0);
@@ -238,6 +239,7 @@ function Index() {
       };
     }
     winColors.current = { overlay: token("--snake-win-overlay"), text: token("--snake-win-text") };
+    portalCols.current = { core: token("--portal-core"), mid: token("--portal-mid"), rim: token("--portal-rim"), spark: token("--portal-spark") };
     mouthCols.current = { mouth: token("--snake-mouth"), tongue: token("--snake-tongue"), teeth: token("--snake-teeth"), eye: token("--snake-eye"), pupil: token("--snake-pupil") };
   }, []);
 
