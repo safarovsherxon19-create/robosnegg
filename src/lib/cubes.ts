@@ -1,15 +1,23 @@
 // Cube Battle physics simulation (browser-safe, pure TS, no DOM).
-export type Level = "saw" | "weapons" | "multiply" | "maze";
+export type Level = "saw" | "weapons" | "multiply" | "maze" | "spikes" | "laser" | "shrink" | "bombs" | "plinko" | "sumo";
 export const LEVELS: Record<Level, string> = {
   saw: "Sawblade Arena",
   weapons: "Weapon Arena",
   multiply: "1 Hit = +1 Cube",
   maze: "Maze Race",
+  spikes: "Spike Walls",
+  laser: "Laser Spinner",
+  shrink: "Shrinking Arena",
+  bombs: "Bomb Rain",
+  plinko: "Plinko Race",
+  sumo: "Sumo Ring",
 };
 export const CUBE_COLORS = [
   ["Red", "#ff3b3b"], ["Blue", "#2f7bff"], ["Green", "#22d36b"], ["Yellow", "#ffd400"],
   ["Purple", "#a855f7"], ["Orange", "#ff8a00"], ["Pink", "#ff4fb8"], ["Cyan", "#14e0ff"],
 ] as const;
+export const RACE_TARGET = 4;
+export const SUDDEN_DEATH = 45;
 
 export interface Cube { id: number; team: number; x: number; y: number; vx: number; vy: number; s: number; hp: number; alive: boolean; flash: number; rot: number; vr: number }
 export interface Saw { x: number; y: number; r: number; a: number; ox: number; oy: number; ax: number; ay: number; f: number }
@@ -17,57 +25,75 @@ export interface Gun { x: number; y: number; a: number; cd: number; kind: "minig
 export interface Bullet { x: number; y: number; vx: number; vy: number; kind: "minigun" | "rpg"; life: number }
 export interface Block { x: number; y: number; w: number; h: number; hp: number }
 export interface Spark { x: number; y: number; vx: number; vy: number; life: number; color: string; size: number }
-export type Sfx = "hit" | "bounce" | "kill" | "shoot" | "boom" | "pop" | "win" | "break";
+export interface Bomb { x: number; y: number; t: number }
+export type Sfx = "hit" | "bounce" | "kill" | "shoot" | "boom" | "pop" | "win" | "break" | "laser" | "tick" | "fall" | "score" | "clang";
 
 export class Arena {
   W = 1000; H = 1000;
   cubes: Cube[] = []; saws: Saw[] = []; guns: Gun[] = []; bullets: Bullet[] = []; blocks: Block[] = []; sparks: Spark[] = [];
-  walls: Block[] = []; goal = { x: 0, y: 0, w: 0, h: 0 };
+  walls: Block[] = []; goal = { x: 0, y: 0, w: 0, h: 0 }; lasers: { a: number; sp: number }[] = []; bombs: Bomb[] = [];
+  inset = 0; ring = 470; score: number[]; bombCd = 2;
   t = 0; winner: number | null = null; over = false; nextId = 0; shake = 0;
   events: Sfx[] = [];
   private rnd: () => number;
   constructor(public level: Level, public teams = 6, seed = Math.random() * 1e9) {
     let s = seed >>> 0 || 1;
     this.rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+    this.score = new Array(teams).fill(0);
     this.setup();
   }
+  get race() { return this.level === "maze" || this.level === "plinko"; }
   private add(team: number, x: number, y: number, s = 46) {
     const a = this.rnd() * Math.PI * 2, sp = 260 + this.rnd() * 180;
     this.cubes.push({ id: this.nextId++, team, x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, s, hp: 100, alive: true, flash: 0, rot: 0, vr: (this.rnd() - 0.5) * 4 });
   }
+  private spawnTop(c: Cube) { c.x = 80 + this.rnd() * (this.W - 160); c.y = 40; c.vx = (this.rnd() - 0.5) * 400; c.vy = 0; }
   private setup() {
-    const r = this.rnd, cx = this.W / 2, cy = this.H / 2;
-    if (this.level === "maze") {
-      const cols = 6, rows = 7, cw = this.W / cols, ch = (this.H - 120) / rows;
+    const r = this.rnd, cx = this.W / 2, cy = this.H / 2, L = this.level;
+    if (L === "maze") {
+      const cols = 6, rows = 6, cw = this.W / cols, ch = (this.H - 120) / rows;
       for (let j = 1; j < rows; j++) {
-        const gap = Math.floor(r() * cols), gap2 = Math.floor(r() * cols);
-        for (let i = 0; i < cols; i++) if (i !== gap && i !== gap2) this.walls.push({ x: i * cw + 6, y: 60 + j * ch, w: cw - 12, h: 14, hp: 1 });
+        const gap = Math.floor(r() * cols);
+        for (let i = 0; i < cols; i++) if (i !== gap) this.walls.push({ x: i * cw + 6, y: 60 + j * ch, w: cw - 12, h: 14, hp: 1 });
       }
-      this.goal = { x: cx - 80, y: this.H - 50, w: 160, h: 40 };
+    }
+    if (L === "plinko") {
+      for (let j = 0; j < 9; j++) for (let i = 0; i < 11; i++)
+        this.walls.push({ x: 40 + i * 92 + (j % 2) * 46, y: 150 + j * 85, w: 18, h: 18, hp: 1 });
+    }
+    if (this.race) {
+      this.goal = { x: cx - 90, y: this.H - 50, w: 180, h: 40 };
       for (let i = 0; i < this.teams; i++) this.add(i, 120 + i * (this.W - 240) / Math.max(1, this.teams - 1), 40, 36);
       return;
     }
     for (let i = 0; i < this.teams; i++) {
-      const a = (i / this.teams) * Math.PI * 2;
-      this.add(i, cx + Math.cos(a) * 320, cy + Math.sin(a) * 320, this.level === "multiply" ? 34 : 50);
+      const a = (i / this.teams) * Math.PI * 2, d = L === "sumo" ? 250 : L === "multiply" ? 440 : 320;
+      this.add(i, cx + Math.cos(a) * d, cy + Math.sin(a) * d, L === "multiply" ? 34 : 50);
     }
-    if (this.level === "saw") {
+    if (L === "saw") {
       this.saws.push({ x: cx, y: cy, r: 70, a: 0, ox: cx, oy: cy, ax: 0, ay: 0, f: 0 });
       for (let i = 0; i < 2; i++) this.saws.push({ x: 0, y: 0, r: 44, a: 0, ox: cx, oy: cy, ax: 260 + r() * 120, ay: 260 + r() * 120, f: 0.4 + r() * 0.5 });
-    } else if (this.level === "weapons") {
+    } else if (L === "weapons") {
       this.guns.push({ x: cx, y: cy, a: 0, cd: 0.5, kind: "minigun" });
       this.guns.push({ x: 120, y: 120, a: 0, cd: 2, kind: "rpg" });
       this.guns.push({ x: this.W - 120, y: this.H - 120, a: 0, cd: 2.6, kind: "rpg" });
-    } else {
+    } else if (L === "multiply") {
       const n = 7, bw = (this.W - 160) / n;
       for (let i = 0; i < n; i++) for (let j = 0; j < 3; j++)
-        this.blocks.push({ x: 80 + i * bw + 4, y: 380 + j * 80, w: bw - 8, h: 60, hp: 3 });
+        this.blocks.push({ x: 80 + i * bw + 4, y: 380 + j * 80, w: bw - 8, h: 60, hp: 20 });
+    } else if (L === "laser") {
+      this.lasers.push({ a: r() * 6, sp: 0.9 }, { a: r() * 6 + Math.PI, sp: 0.9 });
     }
   }
   alive() { return this.cubes.filter((c) => c.alive); }
   counts() {
     const n = new Array(this.teams).fill(0);
     for (const c of this.cubes) if (c.alive) n[c.team]++;
+    return n as number[];
+  }
+  hpTotals() {
+    const n = new Array(this.teams).fill(0);
+    for (const c of this.cubes) if (c.alive) n[c.team] += Math.max(0, c.hp);
     return n as number[];
   }
   private burst(x: number, y: number, color: string, n = 18, sp = 420) {
@@ -77,37 +103,63 @@ export class Arena {
     }
   }
   private damage(c: Cube, d: number) {
-    c.hp -= d; c.flash = 0.12;
-    if (c.hp <= 0 && c.alive) {
-      c.alive = false; this.shake = 14; this.events.push("kill");
-      this.burst(c.x, c.y, CUBE_COLORS[c.team % 8]![1], 34, 600);
-    }
+    c.hp -= d * (this.t > SUDDEN_DEATH ? 3 : 1); c.flash = 0.12;
+    if (c.hp <= 0 && c.alive) this.kill(c);
+  }
+  private kill(c: Cube, ev: Sfx = "kill") {
+    c.alive = false; this.shake = 14; this.events.push(ev);
+    this.burst(c.x, c.y, CUBE_COLORS[c.team % 8]![1], 34, 600);
   }
   private explode(x: number, y: number) {
     this.events.push("boom"); this.shake = 22; this.burst(x, y, "#ffb020", 40, 700);
     for (const c of this.cubes) if (c.alive) {
       const dx = c.x - x, dy = c.y - y, d = Math.hypot(dx, dy);
-      if (d < 200) { const k = (1 - d / 200); c.vx += dx / (d || 1) * 900 * k; c.vy += dy / (d || 1) * 900 * k; this.damage(c, 55 * k); }
+      if (d < 200) { const k = (1 - d / 200); c.vx += dx / (d || 1) * 900 * k; c.vy += dy / (d || 1) * 900 * k; this.damage(c, 40 * k); }
     }
   }
   step(dt: number) {
     if (this.over) { this.t += dt; this.updateSparks(dt); return; }
     this.t += dt; this.shake *= 0.86;
-    const L = this.level;
+    const L = this.level, race = this.race, cx = this.W / 2, cy = this.H / 2;
+    if (L === "shrink") this.inset = Math.min(330, Math.max(0, (this.t - 6) * 7));
+    if (L === "sumo") this.ring = Math.max(230, 470 - this.t * 4);
     for (const s of this.saws) {
       s.a += dt * 9;
       if (s.ax) { s.x = s.ox + Math.cos(this.t * s.f) * s.ax; s.y = s.oy + Math.sin(this.t * s.f * 1.3) * s.ay; }
     }
+    for (const l of this.lasers) l.a += dt * l.sp * (this.t > SUDDEN_DEATH ? 1.6 : 1);
+    if (L === "bombs") {
+      this.bombCd -= dt;
+      if (this.bombCd <= 0) { this.bombs.push({ x: 120 + this.rnd() * 760, y: 120 + this.rnd() * 760, t: 1.8 }); this.bombCd = 1.2 + this.rnd() * 1.2; this.events.push("tick"); }
+      for (const b of this.bombs) { b.t -= dt; if (b.t <= 0) this.explode(b.x, b.y); }
+      this.bombs = this.bombs.filter((b) => b.t > 0);
+    }
+    const lo = this.inset, hi = this.W - this.inset;
     for (const c of this.cubes) {
       if (!c.alive) continue;
-      if (L === "maze") c.vy += 900 * dt;
+      if (race) { c.vy += (L === "plinko" ? 600 : 900) * dt; if (this.rnd() < dt * 2) c.vx += (this.rnd() - 0.5) * 300; }
       c.x += c.vx * dt; c.y += c.vy * dt; c.rot += c.vr * dt; c.flash = Math.max(0, c.flash - dt);
       const h = c.s / 2;
-      if (c.x < h) { c.x = h; c.vx = Math.abs(c.vx); this.events.push("bounce"); }
-      if (c.x > this.W - h) { c.x = this.W - h; c.vx = -Math.abs(c.vx); this.events.push("bounce"); }
-      if (c.y < h) { c.y = h; c.vy = Math.abs(c.vy); this.events.push("bounce"); }
-      if (c.y > this.H - h) { c.y = this.H - h; c.vy = -Math.abs(c.vy) * (L === "maze" ? 0.8 : 1); this.events.push("bounce"); }
-      if (L !== "maze") { // keep chaos alive
+      if (L === "sumo") {
+        const dx = c.x - cx, dy = c.y - cy, d = Math.hypot(dx, dy) || 1;
+        if (d > this.ring - h) {
+          const rv = (c.vx * dx + c.vy * dy) / d;
+          if (this.rnd() > (this.t - 25) / 60) { if (rv > 0) { c.vx -= 2 * rv * dx / d; c.vy -= 2 * rv * dy / d; this.events.push("bounce"); } c.x = cx + dx / d * (this.ring - h); c.y = cy + dy / d * (this.ring - h); }
+          else { this.kill(c, "fall"); continue; }
+        }
+      } else {
+        let wall = false;
+        if (c.x < lo + h) { c.x = lo + h; c.vx = Math.abs(c.vx); wall = true; }
+        if (c.x > hi - h) { c.x = hi - h; c.vx = -Math.abs(c.vx); wall = true; }
+        if (c.y < lo + h) { c.y = lo + h; c.vy = Math.abs(c.vy); wall = true; }
+        if (c.y > hi - h) { c.y = hi - h; c.vy = -Math.abs(c.vy) * (race ? 0.8 : 1); wall = true; }
+        if (wall) {
+          if (L === "spikes") { this.damage(c, 4); this.events.push("clang"); this.burst(c.x, c.y, "#ffffff", 6, 260); }
+          else if (L === "shrink" && this.inset > 0) { this.damage(c, 2); this.events.push("bounce"); }
+          else this.events.push("bounce");
+        }
+      }
+      if (!race) { // keep chaos alive
         const sp = Math.hypot(c.vx, c.vy), want = 340;
         if (sp < want) { c.vx *= 1 + dt; c.vy *= 1 + dt; if (sp < 30) { c.vx += (this.rnd() - 0.5) * 300; c.vy += (this.rnd() - 0.5) * 300; } }
         else if (sp > 900) { c.vx *= 0.98; c.vy *= 0.98; }
@@ -116,12 +168,22 @@ export class Arena {
         const dx = c.x - s.x, dy = c.y - s.y, d = Math.hypot(dx, dy);
         if (d < s.r + h) {
           c.vx = dx / (d || 1) * 600; c.vy = dy / (d || 1) * 600;
-          this.events.push("hit"); this.burst(c.x, c.y, "#ffe08a", 8, 300); this.damage(c, 34);
+          this.events.push("clang"); this.burst(c.x, c.y, "#ffe08a", 10, 320); this.damage(c, 8);
         }
       }
-      for (const w of L === "maze" ? this.walls : this.blocks) this.collideBox(c, w);
-      if (L === "maze" && c.y > this.goal.y - h && c.x > this.goal.x && c.x < this.goal.x + this.goal.w) {
-        this.winner = c.team; this.finish();
+      for (const l of this.lasers) {
+        const dx = c.x - cx, dy = c.y - cy, ca = Math.cos(l.a), sa = Math.sin(l.a);
+        const along = dx * ca + dy * sa, perp = -dx * sa + dy * ca;
+        if (along > 40 && Math.abs(perp) < h + 8) {
+          this.damage(c, 45 * dt); this.events.push("laser");
+          c.vx += -sa * Math.sign(perp || 1) * 40; c.vy += ca * Math.sign(perp || 1) * 40;
+          if (this.rnd() < 0.3) this.burst(c.x, c.y, "#ff2a6d", 2, 200);
+        }
+      }
+      for (const w of race ? this.walls : this.blocks) this.collideBox(c, w);
+      if (race && c.y > this.goal.y - h && c.x > this.goal.x && c.x < this.goal.x + this.goal.w) {
+        this.score[c.team]!++; this.events.push("score"); this.burst(c.x, c.y, CUBE_COLORS[c.team % 8]![1], 30, 500);
+        if (this.score[c.team]! >= RACE_TARGET) { this.winner = c.team; this.finish(); } else this.spawnTop(c);
       }
     }
     // cube vs cube
@@ -132,9 +194,10 @@ export class Arena {
         const ox = m - Math.abs(dx), oy = m - Math.abs(dy);
         if (ox < oy) { const sx = Math.sign(dx) || 1; a.x -= sx * ox / 2; b.x += sx * ox / 2; [a.vx, b.vx] = [b.vx, a.vx]; }
         else { const sy = Math.sign(dy) || 1; a.y -= sy * oy / 2; b.y += sy * oy / 2; [a.vy, b.vy] = [b.vy, a.vy]; }
-        if (a.team !== b.team && L !== "maze") {
+        if (L === "sumo") { const k = 1.15; a.vx *= k; a.vy *= k; b.vx *= k; b.vy *= k; this.events.push("hit"); }
+        else if (a.team !== b.team && !race) {
           this.events.push("hit"); this.burst((a.x + b.x) / 2, (a.y + b.y) / 2, "#ffffff", 6, 250);
-          this.damage(a, 6 + this.rnd() * 10); this.damage(b, 6 + this.rnd() * 10);
+          this.damage(a, 2 + this.rnd() * 3); this.damage(b, 2 + this.rnd() * 3);
         }
       }
     }
@@ -146,28 +209,31 @@ export class Arena {
       if (g.cd <= 0) {
         const sp = g.kind === "rpg" ? 520 : 1100;
         this.bullets.push({ x: g.x, y: g.y, vx: Math.cos(g.a) * sp, vy: Math.sin(g.a) * sp, kind: g.kind, life: 3 });
-        g.cd = g.kind === "rpg" ? 1.8 + this.rnd() * 1.4 : 0.08; this.events.push("shoot");
+        g.cd = g.kind === "rpg" ? 2.4 + this.rnd() * 1.6 : 0.12; this.events.push("shoot");
       }
     }
     for (const b of this.bullets) {
       b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
       if (b.x < 0 || b.y < 0 || b.x > this.W || b.y > this.H) { if (b.kind === "rpg") this.explode(b.x, b.y); b.life = 0; continue; }
       for (const c of this.cubes) if (c.alive && Math.abs(c.x - b.x) < c.s / 2 && Math.abs(c.y - b.y) < c.s / 2) {
-        if (b.kind === "rpg") this.explode(b.x, b.y); else { c.vx += b.vx * 0.15; c.vy += b.vy * 0.15; this.damage(c, 4); this.events.push("hit"); }
+        if (b.kind === "rpg") this.explode(b.x, b.y); else { c.vx += b.vx * 0.15; c.vy += b.vy * 0.15; this.damage(c, 2); this.events.push("hit"); }
         b.life = 0; break;
       }
     }
     this.bullets = this.bullets.filter((b) => b.life > 0);
     this.blocks = this.blocks.filter((b) => b.hp > 0);
     this.updateSparks(dt);
-    if (L !== "maze") {
+    if (!race) {
       const teamsLeft = this.counts().map((n, i) => [n, i]).filter(([n]) => n! > 0);
       if (L === "multiply" && !this.blocks.length) {
         const best = this.counts().reduce((bi, n, i, a) => (n > a[bi]! ? i : bi), 0);
         this.winner = best; this.finish();
       } else if (teamsLeft.length <= 1) { this.winner = teamsLeft[0]?.[1] ?? 0; this.finish(); }
     }
-    if (this.t > 120 && !this.over) { const n = this.counts(); this.winner = n.indexOf(Math.max(...n)); this.finish(); }
+    if (this.t > 90 && !this.over) {
+      const n = race ? this.score : L === "multiply" ? this.counts() : this.hpTotals();
+      this.winner = n.indexOf(Math.max(...n)); this.finish();
+    }
   }
   private finish() { if (this.over) return; this.over = true; this.events.push("win"); }
   private collideBox(c: Cube, w: Block) {
@@ -175,11 +241,12 @@ export class Arena {
     const dx = c.x - nx, dy = c.y - ny;
     if (Math.abs(dx) >= h || Math.abs(dy) >= h) return;
     if (h - Math.abs(dx) < h - Math.abs(dy)) { c.x = nx + Math.sign(dx || c.x - (w.x + w.w / 2)) * h; c.vx = -c.vx; }
-    else { c.y = ny + Math.sign(dy || c.y - (w.y + w.h / 2)) * h; c.vy = -c.vy * (this.level === "maze" ? 0.7 : 1); }
+    else { c.y = ny + Math.sign(dy || c.y - (w.y + w.h / 2)) * h; c.vy = -c.vy * (this.race ? 0.7 : 1); }
     if (this.level === "multiply") {
-      w.hp--; this.events.push(w.hp <= 0 ? "break" : "pop");
+      const lt = (w as Block & { lt?: number }).lt ?? -1; if (this.t - lt < 0.6) return;
+      (w as Block & { lt?: number }).lt = this.t; w.hp--; this.events.push(w.hp <= 0 ? "break" : "pop");
       this.burst(nx, ny, CUBE_COLORS[c.team % 8]![1], 10, 300);
-      if (this.cubes.length < 400) this.add(c.team, c.x, c.y, 30);
+      if (this.cubes.length < 160) this.add(c.team, c.x, c.y, 30);
     } else this.events.push("bounce");
   }
   private updateSparks(dt: number) {
