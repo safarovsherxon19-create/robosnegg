@@ -1,7 +1,7 @@
 // @ts-nocheck -- canvas drawing with bounds-checked arrays
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Arena, LEVELS, CUBE_COLORS, type Level, type Sfx } from "@/lib/cubes";
+import { Arena, LEVELS, CUBE_COLORS, RACE_TARGET, SUDDEN_DEATH, type Level, type Sfx } from "@/lib/cubes";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/cubes")({
@@ -18,40 +18,52 @@ export const Route = createFileRoute("/cubes")({
   component: Cubes,
 });
 
-// Procedural sound effects in the punchy style of physics battle Shorts.
+// Procedural layered sound effects (thump + click + body + room reverb).
 class CubeAudio {
   ctx = new AudioContext(); out: GainNode; dest: MediaStreamAudioDestinationNode; last: Record<string, number> = {};
   constructor() {
-    const lim = this.ctx.createDynamicsCompressor(); lim.threshold.value = -8; lim.ratio.value = 10;
-    this.out = this.ctx.createGain(); this.out.gain.value = 0.7; this.out.connect(lim);
-    this.dest = this.ctx.createMediaStreamDestination(); lim.connect(this.ctx.destination); lim.connect(this.dest);
+    const ctx = this.ctx, lim = ctx.createDynamicsCompressor(); lim.threshold.value = -10; lim.ratio.value = 12; lim.attack.value = 0.002;
+    this.out = ctx.createGain(); this.out.gain.value = 0.75; this.out.connect(lim);
+    // short room reverb for "big arena" feel
+    const len = ctx.sampleRate * 0.9, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 3; }
+    const conv = ctx.createConvolver(), wet = ctx.createGain(); conv.buffer = ir; wet.gain.value = 0.18;
+    this.out.connect(conv); conv.connect(wet); wet.connect(lim);
+    this.dest = ctx.createMediaStreamDestination(); lim.connect(ctx.destination); lim.connect(this.dest);
   }
   private tone(f: number, d: number, type: OscillatorType, v: number, to?: number, at = 0) {
     const t = this.ctx.currentTime + at, o = this.ctx.createOscillator(), g = this.ctx.createGain();
     o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + d);
-    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
     o.connect(g); g.connect(this.out); o.start(t); o.stop(t + d + 0.02);
   }
-  private noise(d: number, freq: number, v: number) {
-    const len = Math.floor(this.ctx.sampleRate * d), b = this.ctx.createBuffer(1, len, this.ctx.sampleRate), c = b.getChannelData(0);
+  private noise(d: number, freq: number, v: number, type: BiquadFilterType = "lowpass", at = 0) {
+    const t = this.ctx.currentTime + at, len = Math.floor(this.ctx.sampleRate * d), b = this.ctx.createBuffer(1, len, this.ctx.sampleRate), c = b.getChannelData(0);
     for (let i = 0; i < len; i++) c[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 2;
     const s = this.ctx.createBufferSource(), f = this.ctx.createBiquadFilter(), g = this.ctx.createGain();
-    s.buffer = b; f.type = "lowpass"; f.frequency.value = freq; g.gain.value = v;
-    s.connect(f); f.connect(g); g.connect(this.out); s.start();
+    s.buffer = b; f.type = type; f.frequency.value = freq; g.gain.value = v;
+    s.connect(f); f.connect(g); g.connect(this.out); s.start(t);
   }
   play(e: Sfx) {
-    const now = this.ctx.currentTime, gap = { bounce: 0.05, hit: 0.04, shoot: 0.06, pop: 0.03 }[e] ?? 0;
+    const now = this.ctx.currentTime, gap = { bounce: 0.045, hit: 0.035, shoot: 0.07, pop: 0.03, laser: 0.09, clang: 0.06 }[e] ?? 0;
     if (now - (this.last[e] ?? 0) < gap) return; this.last[e] = now;
-    const r = 0.9 + Math.random() * 0.2;
+    const r = 0.88 + Math.random() * 0.24;
     switch (e) {
-      case "bounce": this.tone(520 * r, 0.06, "square", 0.08, 260); break;
-      case "hit": this.tone(220 * r, 0.09, "sawtooth", 0.18, 90); this.noise(0.06, 3000, 0.25); break;
-      case "kill": this.noise(0.35, 1800, 0.7); this.tone(160, 0.4, "sine", 0.5, 40); break;
-      case "shoot": this.noise(0.05, 5000, 0.22); this.tone(900 * r, 0.04, "square", 0.06, 300); break;
-      case "boom": this.noise(0.7, 900, 0.9); this.tone(90, 0.6, "sine", 0.7, 30); break;
-      case "pop": this.tone(700 * r, 0.07, "triangle", 0.2, 1400); break;
-      case "break": this.noise(0.15, 2500, 0.4); this.tone(300, 0.12, "triangle", 0.2, 120); break;
-      case "win": [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.35, "triangle", 0.3, undefined, i * 0.12)); break;
+      case "bounce": this.tone(900 * r, 0.05, "triangle", 0.14, 420); this.noise(0.02, 4000, 0.08, "highpass"); break;
+      case "hit": this.tone(140 * r, 0.12, "sine", 0.55, 50); this.noise(0.05, 2500, 0.35); this.tone(380 * r, 0.06, "square", 0.08, 200); break;
+      case "kill": this.noise(0.6, 3000, 0.6, "highpass"); this.noise(0.4, 900, 0.7); this.tone(180, 0.6, "sine", 0.8, 35);
+        [1800, 2400, 3100].forEach((f, i) => this.tone(f * r, 0.25, "triangle", 0.08, f * 0.7, 0.02 * i)); break;
+      case "shoot": this.noise(0.06, 6000, 0.3, "bandpass"); this.tone(160, 0.05, "sine", 0.3, 60); break;
+      case "boom": this.noise(1.1, 700, 1); this.tone(70, 0.9, "sine", 0.9, 25); this.noise(0.15, 5000, 0.4, "highpass"); break;
+      case "pop": this.tone(600 * r, 0.08, "sine", 0.35, 1500); this.noise(0.02, 3000, 0.1, "highpass"); break;
+      case "break": this.noise(0.3, 3500, 0.5, "highpass"); this.tone(250, 0.15, "triangle", 0.3, 90); break;
+      case "clang": [523, 1187, 1789, 2633].forEach((f) => this.tone(f * r, 0.35, "square", 0.04, f * 0.97)); this.noise(0.04, 6000, 0.25, "highpass"); break;
+      case "laser": this.tone(1600 * r, 0.12, "sawtooth", 0.1, 240); break;
+      case "tick": this.tone(1500, 0.05, "sine", 0.25); this.tone(1500, 0.05, "sine", 0.18, undefined, 0.15); break;
+      case "fall": this.tone(1100 * r, 0.6, "sine", 0.3, 90); this.noise(0.4, 1200, 0.3, "lowpass", 0.5); break;
+      case "score": [880, 1320, 1760].forEach((f, i) => this.tone(f, 0.25, "triangle", 0.3, undefined, i * 0.06)); break;
+      case "win": [523, 659, 784, 1046, 1318].forEach((f, i) => { this.tone(f, 0.5, "triangle", 0.35, undefined, i * 0.11); this.tone(f / 2, 0.5, "square", 0.08, undefined, i * 0.11); });
+        this.noise(1.5, 8000, 0.15, "highpass", 0.55); break;
     }
   }
 }
