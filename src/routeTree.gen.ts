@@ -10,33 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CubesRouteImport } from './routes/cubes'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CubesRoute = CubesRouteImport.update({
+  id: '/cubes',
+  path: '/cubes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/cubes': typeof CubesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cubes': typeof CubesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/cubes': typeof CubesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/cubes'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/cubes'
+  id: '__root__' | '/' | '/cubes'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CubesRoute: typeof CubesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +58,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cubes': {
+      id: '/cubes'
+      path: '/cubes'
+      fullPath: '/cubes'
+      preLoaderRoute: typeof CubesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CubesRoute: CubesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
