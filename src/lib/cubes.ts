@@ -51,7 +51,7 @@ export class Arena {
   private setup() {
     const r = this.rnd, cx = this.W / 2, cy = this.H / 2, L = this.level;
     if (L === "maze") {
-      const cols = 6, rows = 8, cw = this.W / cols, ch = (this.H - 120) / rows;
+      const cols = 6, rows = 6, cw = this.W / cols, ch = (this.H - 120) / rows;
       for (let j = 1; j < rows; j++) {
         const gap = Math.floor(r() * cols);
         for (let i = 0; i < cols; i++) if (i !== gap) this.walls.push({ x: i * cw + 6, y: 60 + j * ch, w: cw - 12, h: 14, hp: 1 });
@@ -80,7 +80,7 @@ export class Arena {
     } else if (L === "multiply") {
       const n = 7, bw = (this.W - 160) / n;
       for (let i = 0; i < n; i++) for (let j = 0; j < 3; j++)
-        this.blocks.push({ x: 80 + i * bw + 4, y: 380 + j * 80, w: bw - 8, h: 60, hp: 5 });
+        this.blocks.push({ x: 80 + i * bw + 4, y: 380 + j * 80, w: bw - 8, h: 60, hp: 40 });
     } else if (L === "laser") {
       this.lasers.push({ a: r() * 6, sp: 0.9 }, { a: r() * 6 + Math.PI, sp: 0.9 });
     }
@@ -144,7 +144,7 @@ export class Arena {
         const dx = c.x - cx, dy = c.y - cy, d = Math.hypot(dx, dy) || 1;
         if (d > this.ring - h) {
           const rv = (c.vx * dx + c.vy * dy) / d;
-          if (this.rnd() > this.t / 60) { if (rv > 0) { c.vx -= 2 * rv * dx / d; c.vy -= 2 * rv * dy / d; this.events.push("bounce"); } c.x = cx + dx / d * (this.ring - h); c.y = cy + dy / d * (this.ring - h); }
+          if (this.rnd() > (this.t - 15) / 70) { if (rv > 0) { c.vx -= 2 * rv * dx / d; c.vy -= 2 * rv * dy / d; this.events.push("bounce"); } c.x = cx + dx / d * (this.ring - h); c.y = cy + dy / d * (this.ring - h); }
           else { this.kill(c, "fall"); continue; }
         }
       } else {
@@ -245,7 +245,7 @@ export class Arena {
     if (this.level === "multiply") {
       w.hp--; this.events.push(w.hp <= 0 ? "break" : "pop");
       this.burst(nx, ny, CUBE_COLORS[c.team % 8]![1], 10, 300);
-      if (this.cubes.length < 300) this.add(c.team, c.x, c.y, 30);
+      if (this.cubes.length < 160) this.add(c.team, c.x, c.y, 30);
     } else this.events.push("bounce");
   }
   private updateSparks(dt: number) {
