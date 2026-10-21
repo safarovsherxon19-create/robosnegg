@@ -16,7 +16,7 @@ export const CUBE_COLORS = [
   ["Red", "#ff3b3b"], ["Blue", "#2f7bff"], ["Green", "#22d36b"], ["Yellow", "#ffd400"],
   ["Purple", "#a855f7"], ["Orange", "#ff8a00"], ["Pink", "#ff4fb8"], ["Cyan", "#14e0ff"],
 ] as const;
-export const RACE_TARGET = 3;
+export const RACE_TARGET = 4;
 export const SUDDEN_DEATH = 45;
 
 export interface Cube { id: number; team: number; x: number; y: number; vx: number; vy: number; s: number; hp: number; alive: boolean; flash: number; rot: number; vr: number }
@@ -67,7 +67,7 @@ export class Arena {
       return;
     }
     for (let i = 0; i < this.teams; i++) {
-      const a = (i / this.teams) * Math.PI * 2, d = L === "sumo" ? 250 : 320;
+      const a = (i / this.teams) * Math.PI * 2, d = L === "sumo" ? 250 : L === "multiply" ? 440 : 320;
       this.add(i, cx + Math.cos(a) * d, cy + Math.sin(a) * d, L === "multiply" ? 34 : 50);
     }
     if (L === "saw") {
@@ -141,7 +141,12 @@ export class Arena {
       c.x += c.vx * dt; c.y += c.vy * dt; c.rot += c.vr * dt; c.flash = Math.max(0, c.flash - dt);
       const h = c.s / 2;
       if (L === "sumo") {
-        if (Math.hypot(c.x - cx, c.y - cy) > this.ring + h * 0.3) { this.kill(c, "fall"); continue; }
+        const dx = c.x - cx, dy = c.y - cy, d = Math.hypot(dx, dy) || 1;
+        if (d > this.ring - h) {
+          const rv = (c.vx * dx + c.vy * dy) / d;
+          if (this.rnd() > this.t / 60) { if (rv > 0) { c.vx -= 2 * rv * dx / d; c.vy -= 2 * rv * dy / d; this.events.push("bounce"); } c.x = cx + dx / d * (this.ring - h); c.y = cy + dy / d * (this.ring - h); }
+          else { this.kill(c, "fall"); continue; }
+        }
       } else {
         let wall = false;
         if (c.x < lo + h) { c.x = lo + h; c.vx = Math.abs(c.vx); wall = true; }
@@ -149,7 +154,7 @@ export class Arena {
         if (c.y < lo + h) { c.y = lo + h; c.vy = Math.abs(c.vy); wall = true; }
         if (c.y > hi - h) { c.y = hi - h; c.vy = -Math.abs(c.vy) * (race ? 0.8 : 1); wall = true; }
         if (wall) {
-          if (L === "spikes") { this.damage(c, 7); this.events.push("clang"); this.burst(c.x, c.y, "#ffffff", 6, 260); }
+          if (L === "spikes") { this.damage(c, 4); this.events.push("clang"); this.burst(c.x, c.y, "#ffffff", 6, 260); }
           else if (L === "shrink" && this.inset > 0) { this.damage(c, 2); this.events.push("bounce"); }
           else this.events.push("bounce");
         }
@@ -163,7 +168,7 @@ export class Arena {
         const dx = c.x - s.x, dy = c.y - s.y, d = Math.hypot(dx, dy);
         if (d < s.r + h) {
           c.vx = dx / (d || 1) * 600; c.vy = dy / (d || 1) * 600;
-          this.events.push("clang"); this.burst(c.x, c.y, "#ffe08a", 10, 320); this.damage(c, 14);
+          this.events.push("clang"); this.burst(c.x, c.y, "#ffe08a", 10, 320); this.damage(c, 8);
         }
       }
       for (const l of this.lasers) {
