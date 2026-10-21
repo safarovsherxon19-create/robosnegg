@@ -86,7 +86,8 @@ function Cubes() {
     let raf = 0, prev = performance.now(), endAt = 0, intro = 2.2;
     const frame = (now: number) => {
       const dt = Math.min(0.033, (now - prev) / 1000); prev = now;
-      if (intro > 0) intro -= dt; else for (let i = 0; i < 2; i++) arena.step(dt / 2);
+      if (intro > 0) { const c0 = Math.ceil(intro / 0.75); intro -= dt; if (Math.ceil(intro / 0.75) !== c0) audio.current?.play(intro > 0 ? "tick" : "score"); }
+      else for (let i = 0; i < 2; i++) arena.step(dt / 2);
       for (const e of arena.events) audio.current?.play(e); arena.events.length = 0;
       if (arena.over && !endAt) endAt = now;
       if (endAt && now - endAt > 3500 && recorder.current?.state === "recording") recorder.current.stop();
