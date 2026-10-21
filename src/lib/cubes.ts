@@ -166,7 +166,6 @@ export class Arena {
         const best = this.counts().reduce((bi, n, i, a) => (n > a[bi]! ? i : bi), 0);
         this.winner = best; this.finish();
       } else if (teamsLeft.length <= 1) { this.winner = teamsLeft[0]?.[1] ?? 0; this.finish(); }
-      if (L === "multiply" && this.t > 4) for (const c of this.alive()) if (this.rnd() < dt * 0.15) this.damage(c, 100);
     }
     if (this.t > 120 && !this.over) { const n = this.counts(); this.winner = n.indexOf(Math.max(...n)); this.finish(); }
   }
@@ -180,7 +179,7 @@ export class Arena {
     if (this.level === "multiply") {
       w.hp--; this.events.push(w.hp <= 0 ? "break" : "pop");
       this.burst(nx, ny, CUBE_COLORS[c.team % 8][1], 10, 300);
-      this.add(c.team, c.x, c.y, 30);
+      if (this.cubes.length < 400) this.add(c.team, c.x, c.y, 30);
     } else this.events.push("bounce");
   }
   private updateSparks(dt: number) {
