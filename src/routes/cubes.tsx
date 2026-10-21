@@ -95,20 +95,48 @@ function Cubes() {
       ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.font = "900 78px system-ui";
       ctx.fillText(arena.over ? "WINNER!" : "WHICH COLOR WINS?", W / 2, 150);
       ctx.font = "800 44px system-ui"; ctx.fillStyle = "#ffd400"; ctx.fillText(LEVELS[level].toUpperCase(), W / 2, 220);
-      const n = arena.counts(); const bw = W / teams;
+      const race = arena.race, n = race ? arena.score : arena.counts(); const bw = W / teams;
       n.forEach((k, i) => {
-        ctx.fillStyle = CUBE_COLORS[i][1]; ctx.globalAlpha = k ? 1 : 0.25;
+        ctx.fillStyle = CUBE_COLORS[i][1]; ctx.globalAlpha = k || race ? 1 : 0.25;
         ctx.fillRect(i * bw + 14, 280, bw - 28, 90);
-        ctx.fillStyle = "#000"; ctx.font = "900 50px system-ui"; ctx.fillText(String(k), i * bw + bw / 2, 343); ctx.globalAlpha = 1;
+        ctx.fillStyle = "#000"; ctx.font = "900 50px system-ui"; ctx.fillText(race ? `${k}/${RACE_TARGET}` : String(k), i * bw + bw / 2, 343); ctx.globalAlpha = 1;
       });
+      if (!arena.over && intro <= 0) {
+        const sd = arena.t > SUDDEN_DEATH; ctx.font = "800 38px system-ui"; ctx.fillStyle = sd ? "#ff3b3b" : "#9aa3c0";
+        ctx.fillText(sd ? "⚠ SUDDEN DEATH ⚠" : `⏱ ${Math.floor(arena.t)}s`, W / 2, 425);
+      }
       const sh = arena.shake;
       ctx.save(); ctx.translate(ox + (Math.random() - 0.5) * sh, oy + (Math.random() - 0.5) * sh); ctx.scale(S, S);
       ctx.fillStyle = "#151a28"; ctx.fillRect(0, 0, 1000, 1000);
       ctx.strokeStyle = "#2a3350"; ctx.lineWidth = 2;
       for (let g = 50; g < 1000; g += 50) { ctx.beginPath(); ctx.moveTo(g, 0); ctx.lineTo(g, 1000); ctx.moveTo(0, g); ctx.lineTo(1000, g); ctx.stroke(); }
-      ctx.strokeStyle = "#fff"; ctx.lineWidth = 10; ctx.strokeRect(0, 0, 1000, 1000);
-      if (level === "maze") {
-        ctx.fillStyle = "#cfd6ff"; for (const w of arena.walls) ctx.fillRect(w.x, w.y, w.w, w.h);
+      if (level === "sumo") {
+        ctx.fillStyle = "#05060a"; ctx.fillRect(0, 0, 1000, 1000);
+        ctx.fillStyle = "#e8d3a0"; ctx.beginPath(); ctx.arc(500, 500, arena.ring, 0, 7); ctx.fill();
+        ctx.strokeStyle = "#b33"; ctx.lineWidth = 14; ctx.stroke();
+      }
+      const ins = arena.inset;
+      if (ins > 0) { ctx.fillStyle = "rgba(255,40,40,0.25)"; ctx.fillRect(0, 0, 1000, ins); ctx.fillRect(0, 1000 - ins, 1000, ins); ctx.fillRect(0, ins, ins, 1000 - 2 * ins); ctx.fillRect(1000 - ins, ins, ins, 1000 - 2 * ins); }
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 10; if (level !== "sumo") ctx.strokeRect(ins, ins, 1000 - 2 * ins, 1000 - 2 * ins);
+      if (level === "spikes") {
+        ctx.fillStyle = "#e6e9ff";
+        for (let k = 0; k < 1000; k += 40) for (const [x, y, dx, dy] of [[k, 0, 0, 1], [k, 1000, 0, -1], [0, k, 1, 0], [1000, k, -1, 0]]) {
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (dy ? 40 : 0), y + (dx ? 40 : 0)); ctx.lineTo(x + (dy ? 20 : dx * 26), y + (dx ? 20 : dy * 26)); ctx.fill();
+        }
+      }
+      for (const l of arena.lasers) {
+        ctx.save(); ctx.translate(500, 500); ctx.rotate(l.a);
+        ctx.shadowColor = "#ff2a6d"; ctx.shadowBlur = 30; ctx.fillStyle = "#ff2a6d"; ctx.fillRect(40, -9, 1000, 18);
+        ctx.fillStyle = "#fff"; ctx.fillRect(40, -3, 1000, 6); ctx.restore();
+      }
+      if (arena.lasers.length) { ctx.fillStyle = "#333a55"; ctx.beginPath(); ctx.arc(500, 500, 44, 0, 7); ctx.fill(); }
+      for (const b of arena.bombs) {
+        ctx.strokeStyle = "rgba(255,60,60,0.6)"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(b.x, b.y, 200 * (1 - b.t / 1.8), 0, 7); ctx.stroke();
+        ctx.fillStyle = Math.floor(b.t * 8) % 2 ? "#ff3b3b" : "#222"; ctx.beginPath(); ctx.arc(b.x, b.y, 26, 0, 7); ctx.fill();
+      }
+      if (race) {
+        ctx.fillStyle = "#cfd6ff";
+        for (const w of arena.walls) { if (level === "plinko") { ctx.beginPath(); ctx.arc(w.x + 9, w.y + 9, 11, 0, 7); ctx.fill(); } else ctx.fillRect(w.x, w.y, w.w, w.h); }
         const gl = arena.goal; ctx.fillStyle = "#22d36b"; ctx.fillRect(gl.x, gl.y, gl.w, gl.h);
         ctx.fillStyle = "#000"; ctx.font = "900 28px system-ui"; ctx.fillText("FINISH", gl.x + gl.w / 2, gl.y + 30);
       }
