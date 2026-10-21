@@ -80,7 +80,7 @@ export class Arena {
     } else if (L === "multiply") {
       const n = 7, bw = (this.W - 160) / n;
       for (let i = 0; i < n; i++) for (let j = 0; j < 3; j++)
-        this.blocks.push({ x: 80 + i * bw + 4, y: 380 + j * 80, w: bw - 8, h: 60, hp: 40 });
+        this.blocks.push({ x: 80 + i * bw + 4, y: 380 + j * 80, w: bw - 8, h: 60, hp: 250 });
     } else if (L === "laser") {
       this.lasers.push({ a: r() * 6, sp: 0.9 }, { a: r() * 6 + Math.PI, sp: 0.9 });
     }
@@ -144,7 +144,7 @@ export class Arena {
         const dx = c.x - cx, dy = c.y - cy, d = Math.hypot(dx, dy) || 1;
         if (d > this.ring - h) {
           const rv = (c.vx * dx + c.vy * dy) / d;
-          if (this.rnd() > (this.t - 15) / 70) { if (rv > 0) { c.vx -= 2 * rv * dx / d; c.vy -= 2 * rv * dy / d; this.events.push("bounce"); } c.x = cx + dx / d * (this.ring - h); c.y = cy + dy / d * (this.ring - h); }
+          if (this.rnd() > (this.t - 25) / 60) { if (rv > 0) { c.vx -= 2 * rv * dx / d; c.vy -= 2 * rv * dy / d; this.events.push("bounce"); } c.x = cx + dx / d * (this.ring - h); c.y = cy + dy / d * (this.ring - h); }
           else { this.kill(c, "fall"); continue; }
         }
       } else {

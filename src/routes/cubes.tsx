@@ -142,7 +142,7 @@ function Cubes() {
         ctx.fillStyle = "#000"; ctx.font = "900 28px system-ui"; ctx.fillText("FINISH", gl.x + gl.w / 2, gl.y + 30);
       }
       for (const b of arena.blocks) {
-        ctx.fillStyle = ["#555", "#8a8fa8", "#b7bdd8", "#e6e9ff"][b.hp] ?? "#e6e9ff"; ctx.fillRect(b.x, b.y, b.w, b.h);
+        ctx.fillStyle = ["#555", "#8a8fa8", "#b7bdd8", "#e6e9ff"][Math.ceil(b.hp / 84)] ?? "#e6e9ff"; ctx.fillRect(b.x, b.y, b.w, b.h);
         ctx.fillStyle = "#000"; ctx.font = "800 26px system-ui"; ctx.fillText("+1", b.x + b.w / 2, b.y + b.h / 2 + 9);
       }
       for (const s of arena.saws) {
