@@ -1,5 +1,5 @@
 // @ts-nocheck -- array index access is bounds-checked by game logic
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Game, type Mode, type Skill } from "@/lib/snake";
 import { GameAudio } from "@/lib/audio";
@@ -484,6 +484,9 @@ function Index() {
   return (
     <main className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="flex flex-wrap items-end justify-center gap-4 border-b border-border p-4">
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">Game
+          <Link to="/cubes" className={sel + " inline-flex items-center gap-1 hover:bg-accent"}>🐍 Snake → 🟥 Cube Battle</Link>
+        </label>
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">Board size
           <select className={sel} value={sizeI} onChange={(e) => setSizeI(+e.target.value)} disabled={running && !gameRef.current?.won}>
             {SIZES.map((s, i) => <option key={i} value={i}>{s.label}</option>)}
