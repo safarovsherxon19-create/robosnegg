@@ -160,7 +160,7 @@ function Cubes() {
         const col = CUBE_COLORS[cu.team][1]; ctx.shadowColor = col; ctx.shadowBlur = 20;
         ctx.fillStyle = cu.flash > 0 ? "#fff" : col; ctx.fillRect(-cu.s / 2, -cu.s / 2, cu.s, cu.s); ctx.shadowBlur = 0;
         ctx.strokeStyle = "#000"; ctx.lineWidth = 4; ctx.strokeRect(-cu.s / 2, -cu.s / 2, cu.s, cu.s);
-        ctx.fillStyle = "#000"; const e = cu.s * 0.14; ctx.fillRect(-cu.s * 0.25, -cu.s * 0.15, e, e); ctx.fillRect(cu.s * 0.11, -cu.s * 0.15, e, e);
+        const e = cu.s * 0.26; ctx.fillStyle = "#fff"; ctx.fillRect(-cu.s * 0.36, -cu.s * 0.24, e, e); ctx.fillRect(cu.s * 0.1, -cu.s * 0.24, e, e); ctx.fillStyle = "#000"; const pu = e * 0.55; ctx.fillRect(-cu.s * 0.36 + e - pu, -cu.s * 0.24 + (e - pu) / 2, pu, pu); ctx.fillRect(cu.s * 0.1 + e - pu, -cu.s * 0.24 + (e - pu) / 2, pu, pu);
         if (level !== "multiply" && level !== "maze") { ctx.fillStyle = "#000"; ctx.fillRect(-cu.s / 2, -cu.s / 2 - 14, cu.s, 8); ctx.fillStyle = "#3f3"; ctx.fillRect(-cu.s / 2, -cu.s / 2 - 14, cu.s * Math.max(0, cu.hp) / 100, 8); }
         ctx.restore();
       }
@@ -186,6 +186,15 @@ function Cubes() {
     r.onstop = () => { setRec(false); setUrl(URL.createObjectURL(new Blob(chunks, { type: "video/webm" }))); };
     recorder.current = r; setTimeout(() => r.start(), 50); setRec(true);
   };
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("auto") !== "1") return;
+    const lv = q.get("level") as Level | null;
+    if (lv && lv in LEVELS) setLevel(lv);
+    const t = setTimeout(() => record(), 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const sel = "rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground";
   return (
     <main className="flex min-h-screen flex-col bg-background text-foreground">
