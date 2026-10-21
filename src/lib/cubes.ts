@@ -80,7 +80,7 @@ export class Arena {
     } else if (L === "multiply") {
       const n = 7, bw = (this.W - 160) / n;
       for (let i = 0; i < n; i++) for (let j = 0; j < 3; j++)
-        this.blocks.push({ x: 80 + i * bw + 4, y: 380 + j * 80, w: bw - 8, h: 60, hp: 12 });
+        this.blocks.push({ x: 80 + i * bw + 4, y: 380 + j * 80, w: bw - 8, h: 60, hp: 20 });
     } else if (L === "laser") {
       this.lasers.push({ a: r() * 6, sp: 0.9 }, { a: r() * 6 + Math.PI, sp: 0.9 });
     }
