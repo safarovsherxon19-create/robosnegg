@@ -43,7 +43,7 @@ export class Arena {
     this.setup();
   }
   get race() { return this.level === "maze" || this.level === "plinko"; }
-  private add(team: number, x: number, y: number, s = 46) {
+  private add(team: number, x: number, y: number, s = 58) {
     const a = this.rnd() * Math.PI * 2, sp = 260 + this.rnd() * 180;
     this.cubes.push({ id: this.nextId++, team, x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, s, hp: 100, alive: true, flash: 0, rot: 0, vr: (this.rnd() - 0.5) * 4 });
   }
@@ -63,12 +63,12 @@ export class Arena {
     }
     if (this.race) {
       this.goal = { x: cx - 90, y: this.H - 50, w: 180, h: 40 };
-      for (let i = 0; i < this.teams; i++) this.add(i, 120 + i * (this.W - 240) / Math.max(1, this.teams - 1), 40, 36);
+      for (let i = 0; i < this.teams; i++) this.add(i, 120 + i * (this.W - 240) / Math.max(1, this.teams - 1), 40, 42);
       return;
     }
     for (let i = 0; i < this.teams; i++) {
       const a = (i / this.teams) * Math.PI * 2, d = L === "sumo" ? 250 : L === "multiply" ? 440 : 320;
-      this.add(i, cx + Math.cos(a) * d, cy + Math.sin(a) * d, L === "multiply" ? 34 : 50);
+      this.add(i, cx + Math.cos(a) * d, cy + Math.sin(a) * d, L === "multiply" ? 40 : 62);
     }
     if (L === "saw") {
       this.saws.push({ x: cx, y: cy, r: 70, a: 0, ox: cx, oy: cy, ax: 0, ay: 0, f: 0 });
@@ -246,7 +246,7 @@ export class Arena {
       const lt = (w as Block & { lt?: number }).lt ?? -1; if (this.t - lt < 0.6) return;
       (w as Block & { lt?: number }).lt = this.t; w.hp--; this.events.push(w.hp <= 0 ? "break" : "pop");
       this.burst(nx, ny, CUBE_COLORS[c.team % 8]![1], 10, 300);
-      if (this.cubes.length < 160) this.add(c.team, c.x, c.y, 30);
+      if (this.cubes.length < 160) this.add(c.team, c.x, c.y, 34);
     } else this.events.push("bounce");
   }
   private updateSparks(dt: number) {

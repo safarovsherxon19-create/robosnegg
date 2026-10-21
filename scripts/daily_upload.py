@@ -8,9 +8,19 @@ from pathlib import Path
 import requests
 from playwright.async_api import async_playwright
 
-# Six Shorts a day: odd slots Classic with memes, even slots 2x Classic without memes.
-VIDEOS = {f"short-{i}": dict(w=10, h=10, mode="classic" if i % 2 else "double", format="shorts")
-          for i in range(1, 7)}
+# Six Shorts a day, alternating: 3 Snake (1 with memes) and 3 Cube Battle races.
+VIDEOS = {
+    "short-1": dict(game="snake", w=10, h=10, mode="classic", format="shorts", mems=1),
+    "cube-plinko": dict(game="cubes", level="plinko", format="shorts"),
+    "short-2": dict(game="snake", w=10, h=10, mode="double", format="shorts", mems=0),
+    "cube-laser": dict(game="cubes", level="laser", format="shorts"),
+    "short-3": dict(game="snake", w=10, h=10, mode="classic", format="shorts", mems=0),
+    "cube-maze": dict(game="cubes", level="maze", format="shorts"),
+}
+CUBE_TITLES = {"plinko": "Plinko Race", "laser": "Laser Spinner", "maze": "Maze Race"}
+CUBE_HOOKS = ["Which Color Wins?", "I Bet on One Color — Did I Win?", "Pick Your Color Before It Starts!",
+              "My Hardest Color Race Yet", "Guess the Winner in 3 Seconds", "I Can't Believe This Color Won"]
+CUBE_TAGS = ["#WhichColorWins", "#Satisfying", "#Simulation", "#Marble", "#ColorRace", "#Physics", "#Gaming", "#OddlySatisfying"]
 UPLOAD_GAP_MIN = 30  # each next Short goes live 30 minutes after the previous one
 # Only existing app palettes. Consecutive days change both Shorts colors.
 SHORT_PALETTES = ["candy", "ice", "lime", "rainbow", "ocean", "fire", "gold", "sunset", "neon", "google", "classic"]
@@ -28,7 +38,9 @@ HASHTAGS = ["#Snake", "#SnakeGame", "#Satisfying", "#ASMR", "#Gaming", "#Gamepla
 
 
 def video_config(name: str, day: datetime.date) -> dict:
-    cfg = {**VIDEOS[name], "speed": 15, "head": "snake", "theme": "neon", "mems": 1 if VIDEOS[name]["mode"] == "classic" else 0}
+    if VIDEOS[name]["game"] == "cubes":
+        return {**VIDEOS[name]}
+    cfg = {"speed": 15, "head": "snake", "theme": "neon", **VIDEOS[name]}
     index = list(VIDEOS).index(name)
     if cfg["format"] == "shorts":
         cfg["theme"] = SHORT_PALETTES[(day.toordinal() + index * 2) % len(SHORT_PALETTES)]
@@ -37,6 +49,8 @@ def video_config(name: str, day: datetime.date) -> dict:
 
 
 def recording_query(cfg: dict) -> str:
+    if cfg.get("game") == "cubes":
+        return urlencode({"auto": 1, "level": cfg["level"]})
     return urlencode({"auto": 1, **{k: cfg[k] for k in
         ("w", "h", "mode", "format", "speed", "theme", "head", "banner", "mems")}})
 
@@ -44,6 +58,13 @@ def recording_query(cfg: dict) -> str:
 def video_metadata(name: str, cfg: dict, day: datetime.date) -> tuple[str, str, list[str]]:
     index = list(VIDEOS).index(name)
     rng = random.Random(f"{day.isoformat()}:{name}")
+    if cfg.get("game") == "cubes":
+        lvl = CUBE_TITLES[cfg["level"]]
+        hook = CUBE_HOOKS[(day.toordinal() + index) % len(CUBE_HOOKS)]
+        tags = rng.sample(CUBE_TAGS, 5) + ["#Shorts"]
+        desc = (f"{hook} 🎨 | {lvl}\n\nI made every color race to the finish. Pick yours before it starts!\n"
+                "Comment your color 👇 Subscribe for a new race every day!\n\n" f"{day.isoformat()}\n" + " ".join(tags))
+        return f"{hook} 🎨 | {lvl} #Shorts", desc, ["which color wins", "color race", "satisfying", "simulation", lvl.lower(), "gaming"]
     mode = "2x Classic" if cfg["mode"] == "double" else "Classic"
     hooks = TITLE_HOOKS if cfg["format"] == "shorts" else [h for h in TITLE_HOOKS if "50%" not in h and "Half" not in h]
     hook = hooks[(day.toordinal() * 4 + index) % len(hooks)]
@@ -71,8 +92,9 @@ async def record(site: str, cfg: dict, out: Path) -> None:
         browser = await p.chromium.launch(headless=True, args=["--autoplay-policy=no-user-gesture-required"])
         ctx = await browser.new_context(viewport={"width": 1280, "height": 1800}, accept_downloads=True)
         page = await ctx.new_page()
-        await page.goto(f"{site.rstrip('/')}/?{q}", wait_until="networkidle")
-        if cfg["mems"]:
+        path = "/cubes" if cfg.get("game") == "cubes" else "/"
+        await page.goto(f"{site.rstrip('/')}{path}?{q}", wait_until="networkidle")
+        if cfg.get("mems"):
             # An empty library must not silently produce a supposedly meme-enabled video.
             await page.get_by_role("button", name="Choose memes").wait_for(timeout=60000)
             count = await page.get_by_role("button", name="Choose memes").inner_text()
@@ -83,6 +105,9 @@ async def record(site: str, cfg: dict, out: Path) -> None:
         async with page.expect_download() as d:
             await link.click()
         await (await d.value).save_as(out)
+        if cfg.get("game") == "cubes":
+            await browser.close()
+            return
         cover = page.get_by_role("link", name="Download cover", exact=True)
         await cover.wait_for(timeout=60000)
         async with page.expect_download() as d:
@@ -131,7 +156,7 @@ def main() -> None:
     wait = (target - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
     if wait > 0:
         time.sleep(wait)
-    vid = upload(out, title, desc, tags, set_cover=cfg["format"] == "long")
+    vid = upload(out, title, desc, tags, set_cover=cfg.get("format") == "long")
     print(f"Uploaded {name}: https://youtu.be/{vid}")
 
 
