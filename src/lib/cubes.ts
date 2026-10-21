@@ -80,7 +80,7 @@ export class Arena {
     c.hp -= d; c.flash = 0.12;
     if (c.hp <= 0 && c.alive) {
       c.alive = false; this.shake = 14; this.events.push("kill");
-      this.burst(c.x, c.y, CUBE_COLORS[c.team % 8][1], 34, 600);
+      this.burst(c.x, c.y, CUBE_COLORS[c.team % 8]![1], 34, 600);
     }
   }
   private explode(x: number, y: number) {
@@ -178,7 +178,7 @@ export class Arena {
     else { c.y = ny + Math.sign(dy || c.y - (w.y + w.h / 2)) * h; c.vy = -c.vy * (this.level === "maze" ? 0.7 : 1); }
     if (this.level === "multiply") {
       w.hp--; this.events.push(w.hp <= 0 ? "break" : "pop");
-      this.burst(nx, ny, CUBE_COLORS[c.team % 8][1], 10, 300);
+      this.burst(nx, ny, CUBE_COLORS[c.team % 8]![1], 10, 300);
       if (this.cubes.length < 400) this.add(c.team, c.x, c.y, 30);
     } else this.events.push("bounce");
   }
