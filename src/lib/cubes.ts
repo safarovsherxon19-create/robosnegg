@@ -80,7 +80,7 @@ export class Arena {
     } else if (L === "multiply") {
       const n = 7, bw = (this.W - 160) / n;
       for (let i = 0; i < n; i++) for (let j = 0; j < 3; j++)
-        this.blocks.push({ x: 80 + i * bw + 4, y: 380 + j * 80, w: bw - 8, h: 60, hp: 250 });
+        this.blocks.push({ x: 80 + i * bw + 4, y: 380 + j * 80, w: bw - 8, h: 60, hp: 12 });
     } else if (L === "laser") {
       this.lasers.push({ a: r() * 6, sp: 0.9 }, { a: r() * 6 + Math.PI, sp: 0.9 });
     }
@@ -243,7 +243,8 @@ export class Arena {
     if (h - Math.abs(dx) < h - Math.abs(dy)) { c.x = nx + Math.sign(dx || c.x - (w.x + w.w / 2)) * h; c.vx = -c.vx; }
     else { c.y = ny + Math.sign(dy || c.y - (w.y + w.h / 2)) * h; c.vy = -c.vy * (this.race ? 0.7 : 1); }
     if (this.level === "multiply") {
-      w.hp--; this.events.push(w.hp <= 0 ? "break" : "pop");
+      const lt = (w as Block & { lt?: number }).lt ?? -1; if (this.t - lt < 0.6) return;
+      (w as Block & { lt?: number }).lt = this.t; w.hp--; this.events.push(w.hp <= 0 ? "break" : "pop");
       this.burst(nx, ny, CUBE_COLORS[c.team % 8]![1], 10, 300);
       if (this.cubes.length < 160) this.add(c.team, c.x, c.y, 30);
     } else this.events.push("bounce");
