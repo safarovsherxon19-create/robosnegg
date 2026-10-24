@@ -2,7 +2,7 @@
 
 Env: SITE_URL, VIDEO (job name), YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN, PRIVACY (optional)
 """
-import asyncio, time, datetime, json, os, random, sys
+import asyncio, time, datetime, json, os, random, sys, subprocess
 from urllib.parse import urlencode
 from pathlib import Path
 import requests
@@ -89,7 +89,8 @@ def video_metadata(name: str, cfg: dict, day: datetime.date) -> tuple[str, str, 
 async def record(site: str, cfg: dict, out: Path) -> None:
     q = recording_query(cfg)
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True, args=["--autoplay-policy=no-user-gesture-required"])
+        browser = await p.chromium.launch(headless=True, args=["--autoplay-policy=no-user-gesture-required",
+            "--disable-background-timer-throttling", "--disable-renderer-backgrounding", "--disable-backgrounding-occluded-windows"])
         ctx = await browser.new_context(viewport={"width": 1280, "height": 1800}, accept_downloads=True)
         page = await ctx.new_page()
         path = "/cubes" if cfg.get("game") == "cubes" else "/"
@@ -114,6 +115,28 @@ async def record(site: str, cfg: dict, out: Path) -> None:
             await cover.click()
         await (await d.value).save_as(out.with_suffix(".jpg"))
         await browser.close()
+
+
+def validate_frame_times(times: list[float]) -> None:
+    if len(times) < 2 or times[-1] <= times[0]:
+        raise RuntimeError("Recording has no usable video frames")
+    gaps = [b - a for a, b in zip(times, times[1:])]
+    fps = (len(times) - 1) / (times[-1] - times[0])
+    if max(gaps) > 0.5 or fps < 24:
+        raise RuntimeError(f"Recording is too choppy to upload: {fps:.1f} fps, longest gap {max(gaps):.3f}s")
+
+
+def prepare_upload(path: Path) -> Path:
+    probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+        "-show_entries", "frame=best_effort_timestamp_time", "-of", "json", str(path)],
+        capture_output=True, text=True, check=True)
+    frames = json.loads(probe.stdout).get("frames", [])
+    validate_frame_times([float(f["best_effort_timestamp_time"]) for f in frames if "best_effort_timestamp_time" in f])
+    output = path.with_suffix(".mp4")
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(path), "-vf", "fps=30",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(output)], check=True)
+    return output
 
 
 def upload(path: Path, title: str, desc: str, tags: list[str], *, set_cover: bool = False) -> str:
@@ -149,14 +172,22 @@ def main() -> None:
     day = datetime.datetime.now(datetime.timezone.utc).date()
     cfg = video_config(name, day)
     out = Path(f"/tmp/{name}.webm")
-    asyncio.run(record(os.environ["SITE_URL"], cfg, out))
+    for attempt in range(3):
+        asyncio.run(record(os.environ["SITE_URL"], cfg, out))
+        try:
+            out_mp4 = prepare_upload(out)
+            break
+        except RuntimeError as error:
+            print(f"Capture attempt {attempt + 1}: {error}", file=sys.stderr)
+            if attempt == 2:
+                raise
     title, desc, tags = video_metadata(name, cfg, day)
     start = datetime.datetime.combine(day, datetime.time(0, 0), datetime.timezone.utc)
     target = start + datetime.timedelta(minutes=UPLOAD_GAP_MIN * list(VIDEOS).index(name))
     wait = (target - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
     if wait > 0:
         time.sleep(wait)
-    vid = upload(out, title, desc, tags, set_cover=cfg.get("format") == "long")
+    vid = upload(out_mp4, title, desc, tags, set_cover=cfg.get("format") == "long")
     print(f"Uploaded {name}: https://youtu.be/{vid}")
 
 

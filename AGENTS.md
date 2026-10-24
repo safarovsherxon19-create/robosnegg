@@ -21,3 +21,5 @@
 - Public library loading runs through an unauthenticated read-only server function with a publishable RLS-scoped client; signed playback URLs use the browser-reachable storage origin.
 - Schedule the next meme from the previous clip's ended/error event in game time; format-specific placement must never cover the board.
 - Capture covers directly from the recording canvas while an actually-used meme is visible; upload custom covers for Long only, as Shorts custom cover selection is not supported by the YouTube API.
+- Share a downsampled, explicitly frame-requested VP8 recording capture across both games; keep the original composited canvas and shared audio unchanged to reduce headless encoding stalls.
+- Validate raw frame cadence before daily uploads and convert accepted recordings to constant-frame-rate H.264/AAC; never hide large capture gaps by merely duplicating frames.
