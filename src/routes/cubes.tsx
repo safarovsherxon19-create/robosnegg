@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Arena, LEVELS, CUBE_COLORS, RACE_TARGET, SUDDEN_DEATH, type Level, type Sfx } from "@/lib/cubes";
 import { Button } from "@/components/ui/button";
+import { createRecordingCapture, recordingOptions } from "@/lib/recording";
 
 export const Route = createFileRoute("/cubes")({
   head: () => ({
@@ -180,11 +181,13 @@ function Cubes() {
   const start = () => { audio.current ??= new CubeAudio(); void audio.current.ctx.resume(); setUrl(null); setRun((r) => r + 1); };
   const record = () => {
     start();
-    const a = audio.current!, stream = new MediaStream([...canvas.current!.captureStream(60).getVideoTracks(), ...a.dest.stream.getAudioTracks()]);
-    const chunks: Blob[] = [], r = new MediaRecorder(stream, { mimeType: "video/webm", videoBitsPerSecond: 12_000_000 });
-    r.ondataavailable = (e) => chunks.push(e.data);
-    r.onstop = () => { setRec(false); setUrl(URL.createObjectURL(new Blob(chunks, { type: "video/webm" }))); };
-    recorder.current = r; setTimeout(() => r.start(), 50); setRec(true);
+    const c = canvas.current, a = audio.current;
+    if (!c || !a) return;
+    const capture = createRecordingCapture(c, a.dest.stream.getAudioTracks());
+    const chunks: Blob[] = [], r = new MediaRecorder(capture.stream, recordingOptions());
+    r.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    r.onstop = () => { capture.dispose(); setRec(false); setUrl(URL.createObjectURL(new Blob(chunks, { type: r.mimeType }))); };
+    recorder.current = r; r.start(1000); setRec(true);
   };
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);

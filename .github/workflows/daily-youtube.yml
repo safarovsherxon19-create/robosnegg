@@ -19,6 +19,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install playwright requests && python -m playwright install --with-deps chromium
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: python scripts/daily_upload.py
         env:
           SITE_URL: https://robosnegg.lovable.app

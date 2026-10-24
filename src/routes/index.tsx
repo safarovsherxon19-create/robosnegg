@@ -8,6 +8,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { memeLibraryOptions } from "@/lib/meme-library";
 import { MemeLibrary } from "@/components/meme-library";
 import { digestionPulse } from "@/lib/digestion";
+import { createRecordingCapture, recordingOptions } from "@/lib/recording";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ChevronDown, Pause, Play, Square, RotateCcw } from "lucide-react";
@@ -129,18 +130,15 @@ function Index() {
     coverRef.current = null; setCover(null);
     const recordedFormat = format;
     const recordedMode = mode;
-    const stream = c.captureStream(60);
-    const a = ensureAudio().dest.stream.getAudioTracks()[0];
-    if (a) stream.addTrack(a.clone());
-    const types = ["video/mp4;codecs=avc1,mp4a.40.2", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/mp4;codecs=avc1", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
-    const mime = types.find((t) => MediaRecorder.isTypeSupported(t)) || "";
-    const r = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 16_000_000 });
+    const capture = createRecordingCapture(c, ensureAudio().dest.stream.getAudioTracks());
+    const r = new MediaRecorder(capture.stream, recordingOptions());
+    const mime = r.mimeType;
     chunks.current = [];
     r.ondataavailable = (e) => e.data.size && chunks.current.push(e.data);
     r.onstop = () => {
       const blob = new Blob(chunks.current, { type: mime || "video/webm" });
       setVideo({ url: URL.createObjectURL(blob), ext: mime.includes("mp4") ? "mp4" : "webm", format: recordedFormat, mode: recordedMode });
-      stream.getTracks().forEach((track) => track.stop());
+      capture.dispose();
       setCover(coverRef.current || c.toDataURL("image/jpeg", 0.9));
       setRecording(false);
     };
@@ -273,7 +271,7 @@ function Index() {
         if (warped) audioRef.current?.portal();
         else if (turned && !ate) audioRef.current?.turn();
         if (ate) { audioRef.current?.eat(); eatAt.current = t; }
-        setStats({ len: g.snake.length, total: g.N, eaten: g.eaten });
+        if (ate) setStats({ len: g.snake.length, total: g.N, eaten: g.eaten });
       }
       if (g?.over) {
         setRunning(false);

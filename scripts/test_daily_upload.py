@@ -2,7 +2,7 @@ import datetime
 import unittest
 from urllib.parse import parse_qs
 
-from daily_upload import VIDEOS, SHORT_PALETTES, UPLOAD_GAP_MIN, video_config, recording_query
+from daily_upload import VIDEOS, SHORT_PALETTES, UPLOAD_GAP_MIN, video_config, recording_query, validate_frame_times
 
 
 class DailyVideoRules(unittest.TestCase):
@@ -33,6 +33,21 @@ class DailyVideoRules(unittest.TestCase):
 
     def test_uploads_30_minutes_apart(self):
         self.assertEqual(UPLOAD_GAP_MIN, 30)
+
+    def test_smooth_capture_accepted(self):
+        validate_frame_times([i / 30 for i in range(300)])
+
+    def test_frozen_capture_rejected(self):
+        with self.assertRaisesRegex(RuntimeError, "too choppy"):
+            validate_frame_times([i / 30 for i in range(60)] + [3 + i / 30 for i in range(240)])
+
+    def test_low_frame_rate_rejected(self):
+        with self.assertRaisesRegex(RuntimeError, "too choppy"):
+            validate_frame_times([i / 12 for i in range(120)])
+
+    def test_empty_recording_rejected(self):
+        with self.assertRaisesRegex(RuntimeError, "no usable"):
+            validate_frame_times([])
 
 
 if __name__ == "__main__":
