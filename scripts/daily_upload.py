@@ -13,9 +13,9 @@ VIDEOS = {
     "short-1": dict(game="snake", w=10, h=10, mode="classic", format="shorts", mems=1),
     "short-2": dict(game="snake", w=10, h=10, mode="double", format="shorts", mems=0),
     "long-1": dict(game="snake", w=32, h=18, mode="classic", format="long", mems=1),
-    "short-3": dict(game="snake", w=10, h=10, mode="double", format="shorts", mems=1),
-    "short-4": dict(game="snake", w=10, h=10, mode="classic", format="shorts", mems=0),
-    "long-2": dict(game="snake", w=32, h=18, mode="double", format="long", mems=0),
+    "short-3": dict(game="snake", w=10, h=10, mode="double", format="shorts", mems=1, skill="hacker"),
+    "short-4": dict(game="snake", w=10, h=10, mode="classic", format="shorts", mems=0, skill="hacker"),
+    "long-2": dict(game="snake", w=32, h=18, mode="double", format="long", mems=0, skill="hacker"),
 }
 CUBE_TITLES = {"plinko": "Plinko Race", "laser": "Laser Spinner", "maze": "Maze Race"}
 CUBE_HOOKS = ["Which Color Wins?", "I Bet on One Color — Did I Win?", "Pick Your Color Before It Starts!",
@@ -40,7 +40,8 @@ HASHTAGS = ["#Snake", "#SnakeGame", "#Satisfying", "#ASMR", "#Gaming", "#Gamepla
 def video_config(name: str, day: datetime.date) -> dict:
     if VIDEOS[name]["game"] == "cubes":
         return {**VIDEOS[name]}
-    cfg = {"speed": 15, "head": "snake", "theme": "neon", **VIDEOS[name]}
+    cfg = {"speed": 10 if VIDEOS[name]["format"] == "shorts" else 15,
+           "skill": "pro", "head": "snake", "theme": "neon", **VIDEOS[name]}
     index = list(VIDEOS).index(name)
     if cfg["format"] == "shorts":
         cfg["theme"] = SHORT_PALETTES[(day.toordinal() + index * 2) % len(SHORT_PALETTES)]
@@ -52,7 +53,7 @@ def recording_query(cfg: dict) -> str:
     if cfg.get("game") == "cubes":
         return urlencode({"auto": 1, "level": cfg["level"]})
     return urlencode({"auto": 1, **{k: cfg[k] for k in
-        ("w", "h", "mode", "format", "speed", "theme", "head", "banner", "mems")}})
+        ("w", "h", "mode", "format", "speed", "theme", "head", "banner", "mems", "skill")}})
 
 
 def video_metadata(name: str, cfg: dict, day: datetime.date) -> tuple[str, str, list[str]]:

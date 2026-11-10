@@ -19,10 +19,19 @@ class DailyVideoRules(unittest.TestCase):
         self.assertEqual(sum(video_config(n, self.day)["mems"] for n in self.shorts), 2)
         self.assertEqual(sum(video_config(n, self.day)["mems"] for n in self.longs), 1)
 
-    def test_shorts_keep_10_by_10_speed_15(self):
+    def test_shorts_10_by_10_speed_10(self):
         for n in self.shorts:
             cfg = video_config(n, self.day)
-            self.assertEqual((cfg["w"], cfg["h"], cfg["speed"], cfg["head"]), (10, 10, 15, "snake"))
+            self.assertEqual((cfg["w"], cfg["h"], cfg["speed"], cfg["head"]), (10, 10, 10, "snake"))
+
+    def test_long_speed_15(self):
+        for n in self.longs:
+            self.assertEqual(video_config(n, self.day)["speed"], 15)
+
+    def test_hacker_two_shorts_one_long(self):
+        hk = lambda ns: sum(video_config(n, self.day)["skill"] == "hacker" for n in ns)
+        self.assertEqual((hk(self.shorts), hk(self.longs)), (2, 1))
+        self.assertEqual(parse_qs(recording_query(video_config("long-2", self.day)))["skill"], ["hacker"])
 
     def test_uploads_30_minutes_apart(self):
         self.assertEqual(UPLOAD_GAP_MIN, 30)

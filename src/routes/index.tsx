@@ -216,6 +216,7 @@ function Index() {
     const th = q.get("theme") || "google"; if (th in THEMES) setTheme(th as keyof typeof THEMES);
     const hd = q.get("head") || "snake"; if (HEADS.some((x) => x.id === hd)) setHeadStyle(hd);
     setWithMems(q.get("mems") === "1");
+    const sk = q.get("skill"); if (sk === "noob" || sk === "pro" || sk === "hacker") setSkill(sk);
     setAutoRec(true);
     setAutoGo(true);
   }, []);
