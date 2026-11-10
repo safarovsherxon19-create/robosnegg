@@ -8,14 +8,14 @@ from pathlib import Path
 import requests
 from playwright.async_api import async_playwright
 
-# Six Shorts a day, alternating: 3 Snake (1 with memes) and 3 Cube Battle races.
+# Snake only: 4 Shorts (2 with memes) + 2 Long (1 with memes).
 VIDEOS = {
     "short-1": dict(game="snake", w=10, h=10, mode="classic", format="shorts", mems=1),
-    "cube-plinko": dict(game="cubes", level="plinko", format="shorts"),
     "short-2": dict(game="snake", w=10, h=10, mode="double", format="shorts", mems=0),
-    "cube-laser": dict(game="cubes", level="laser", format="shorts"),
-    "short-3": dict(game="snake", w=10, h=10, mode="classic", format="shorts", mems=0),
-    "cube-maze": dict(game="cubes", level="maze", format="shorts"),
+    "long-1": dict(game="snake", w=32, h=18, mode="classic", format="long", mems=1),
+    "short-3": dict(game="snake", w=10, h=10, mode="double", format="shorts", mems=1),
+    "short-4": dict(game="snake", w=10, h=10, mode="classic", format="shorts", mems=0),
+    "long-2": dict(game="snake", w=32, h=18, mode="double", format="long", mems=0),
 }
 CUBE_TITLES = {"plinko": "Plinko Race", "laser": "Laser Spinner", "maze": "Maze Race"}
 CUBE_HOOKS = ["Which Color Wins?", "I Bet on One Color — Did I Win?", "Pick Your Color Before It Starts!",

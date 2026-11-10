@@ -2,34 +2,27 @@ import datetime
 import unittest
 from urllib.parse import parse_qs
 
-from daily_upload import VIDEOS, SHORT_PALETTES, UPLOAD_GAP_MIN, video_config, recording_query, validate_frame_times
+from daily_upload import VIDEOS, UPLOAD_GAP_MIN, video_config, recording_query, validate_frame_times
 
 
 class DailyVideoRules(unittest.TestCase):
     day = datetime.date(2026, 10, 13)
 
-    snakes = [n for n in VIDEOS if VIDEOS[n]["game"] == "snake"]
-    cubes = [n for n in VIDEOS if VIDEOS[n]["game"] == "cubes"]
+    shorts = [n for n in VIDEOS if VIDEOS[n]["format"] == "shorts"]
+    longs = [n for n in VIDEOS if VIDEOS[n]["format"] == "long"]
 
-    def test_three_snake_one_with_memes(self):
-        self.assertEqual(len(VIDEOS), 6)
-        self.assertEqual(len(self.snakes), 3)
-        self.assertEqual(sum(video_config(n, self.day)["mems"] for n in self.snakes), 1)
+    def test_four_shorts_two_long_snake_only(self):
+        self.assertEqual((len(self.shorts), len(self.longs)), (4, 2))
+        self.assertTrue(all(v["game"] == "snake" for v in VIDEOS.values()))
 
-    def test_three_cube_races(self):
-        self.assertEqual(sorted(VIDEOS[n]["level"] for n in self.cubes), ["laser", "maze", "plinko"])
-        for n in self.cubes:
-            self.assertEqual(parse_qs(recording_query(video_config(n, self.day)))["level"], [VIDEOS[n]["level"]])
+    def test_memes_half_of_each_format(self):
+        self.assertEqual(sum(video_config(n, self.day)["mems"] for n in self.shorts), 2)
+        self.assertEqual(sum(video_config(n, self.day)["mems"] for n in self.longs), 1)
 
-    def test_snake_shorts_keep_10_by_10_speed_15(self):
-        for n in self.snakes:
+    def test_shorts_keep_10_by_10_speed_15(self):
+        for n in self.shorts:
             cfg = video_config(n, self.day)
-            self.assertEqual((cfg["w"], cfg["h"], cfg["speed"], cfg["head"], cfg["format"]), (10, 10, 15, "snake", "shorts"))
-
-    def test_snake_colors_distinct_each_day(self):
-        for d in range(15):
-            cfgs = [video_config(n, self.day + datetime.timedelta(days=d)) for n in self.snakes]
-            self.assertEqual(len({c["theme"] for c in cfgs}), 3)
+            self.assertEqual((cfg["w"], cfg["h"], cfg["speed"], cfg["head"]), (10, 10, 15, "snake"))
 
     def test_uploads_30_minutes_apart(self):
         self.assertEqual(UPLOAD_GAP_MIN, 30)

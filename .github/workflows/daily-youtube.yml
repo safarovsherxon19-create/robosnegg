@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        video: [short-1, cube-plinko, short-2, cube-laser, short-3, cube-maze]
+        video: [short-1, short-2, long-1, short-3, short-4, long-2]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
