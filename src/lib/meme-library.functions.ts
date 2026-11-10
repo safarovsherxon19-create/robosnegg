@@ -19,7 +19,9 @@ export const listMemeClips = createServerFn({ method: "GET" }).handler(async ():
   const { data, error } = await client.from("meme_clips").select("id,name,path").order("created_at");
   if (error) throw error;
   if (!data.length) return [];
-  const signed = await client.storage.from("meme-clips").createSignedUrls(data.map(c => c.path), 86400);
+  // Files are private; only this server signs short playback links for listed clips.
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const signed = await supabaseAdmin.storage.from("meme-clips").createSignedUrls(data.map(c => c.path), 86400);
   if (signed.error) throw signed.error;
   // Server-only env (import.meta.env is not defined for the SSR handler).
   const browserUrl = process.env['SUPABASE_URL'];

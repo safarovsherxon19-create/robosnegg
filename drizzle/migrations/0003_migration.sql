@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS shared_clip_files ON storage.objects;
